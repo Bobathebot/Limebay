@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import http.server, json, os
-import cloudscraper
+from curl_cffi import requests as cffi_requests
 
 PORT = int(os.environ.get("PORT", 8080))
 TOKEN = "eyJraWQiOiJrcjM1bGx0Ymg1dTIiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX3Rva2VuIjoiWVlKQ1JST05VVTdVUSIsImxvZ2luX2NvdW50Ijo3LCJleHBpcmVzX2F0IjoxNzc1OTk0MTgxLCJpYXQiOjE3NzU5OTQwNjF9.vk_o75En_dyR6ZcwNPWoy4g_C4ROmA4EllfPW48IRL0"
@@ -43,8 +43,6 @@ def in_bre1(lat, lng):
         j = i
     return inside
 
-scraper = cloudscraper.create_scraper()
-
 class Handler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/api/bikes"):
@@ -60,7 +58,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def test_lime(self):
         try:
             hdrs = {"Authorization":"Bearer "+TOKEN,"Platform":"iOS","App-Version":"3.248.1","Content-Type":"application/json","Accept":"application/json"}
-            r = scraper.get("https://web-production.lime.bike/api/rider/v2/map/bike_pins", params={"ne_lat":51.55,"ne_lng":-0.20,"sw_lat":51.53,"sw_lng":-0.22,"user_latitude":51.54,"user_longitude":-0.21,"zoom":16}, headers=hdrs)
+            r = cffi_requests.get("https://web-production.lime.bike/api/rider/v2/map/bike_pins", params={"ne_lat":51.55,"ne_lng":-0.20,"sw_lat":51.53,"sw_lng":-0.22,"user_latitude":51.54,"user_longitude":-0.21,"zoom":16}, headers=hdrs, impersonate="chrome")
             msg = "Status: " + str(r.status_code) + "\nBody: " + r.text[:500]
         except Exception as e:
             msg = "Error: " + str(e)
@@ -73,13 +71,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         hdrs = {"Authorization":"Bearer "+TOKEN,"Platform":"iOS","App-Version":"3.248.1","Content-Type":"application/json","Accept":"application/json"}
         all_bikes = []
         seen = set()
-        raw = 0
         for i, zone in enumerate(ZONES):
             try:
-                r = scraper.get("https://web-production.lime.bike/api/rider/v2/map/bike_pins", params=dict(zone, zoom=16.0), headers=hdrs)
+                r = cffi_requests.get("https://web-production.lime.bike/api/rider/v2/map/bike_pins", params=dict(zone, zoom=16.0), headers=hdrs, impersonate="chrome")
                 pins = r.json().get("data",{}).get("attributes",{}).get("bike_pins",[])
-                raw += len(pins)
-                added = 0
                 for pin in pins:
                     bid = pin.get("id","")
                     if bid in seen:
@@ -90,8 +85,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     lng = loc.get("longitude",0)
                     if in_bre1(lat, lng):
                         all_bikes.append({"id":bid,"lat":lat,"lng":lng,"type":pin.get("sub_type_name","unknown")})
-                        added += 1
-                print("Strip " + str(i+1) + ": " + str(len(pins)) + " raw, " + str(added) + " in BRE1")
+                print("Strip " + str(i+1) + ": " + str(len(pins)) + " bikes")
             except Exception as e:
                 print("Strip " + str(i+1) + " error: " + str(e))
         out = json.dumps({"bikes":all_bikes,"count":len(all_bikes)})
@@ -100,7 +94,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin","*")
         self.end_headers()
         self.wfile.write(out.encode())
-        print("TOTAL: " + str(raw) + " raw -> " + str(len(all_bikes)) + " in BRE1")
+        print("TOTAL: " + str(len(all_bikes)) + " bikes in BRE1")
 
 print("LimeBay on port " + str(PORT))
 http.server.HTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
