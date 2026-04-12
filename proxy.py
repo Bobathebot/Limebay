@@ -1,29 +1,18 @@
 #!/usr/bin/env python3
-import http.server, json, os, sys
-
+import http.server, json, os
 import cloudscraper
 
-import os; PORT = int(os.environ.get("PORT", 8080))
+PORT = int(os.environ.get("PORT", 8080))
 TOKEN = "eyJraWQiOiJrcjM1bGx0Ymg1dTIiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX3Rva2VuIjoiWVlKQ1JST05VVTdVUSIsImxvZ2luX2NvdW50Ijo3LCJleHBpcmVzX2F0IjoxNzc1OTk0MTgxLCJpYXQiOjE3NzU5OTQwNjF9.vk_o75En_dyR6ZcwNPWoy4g_C4ROmA4EllfPW48IRL0"
 
-# 8 strips: longitude range -0.282 to -0.190, each ~0.0115 wide
-# Also split north/south at 51.540 for the dense middle strips
 ZONES = [
-    # Far west
     {"ne_lat":51.553,"ne_lng":-0.2588,"sw_lat":51.527,"sw_lng":-0.2820,"user_latitude":51.540,"user_longitude":-0.270},
-    # West
     {"ne_lat":51.553,"ne_lng":-0.2363,"sw_lat":51.527,"sw_lng":-0.2588,"user_latitude":51.538,"user_longitude":-0.247},
-    # Central-west south
     {"ne_lat":51.540,"ne_lng":-0.2138,"sw_lat":51.527,"sw_lng":-0.2363,"user_latitude":51.533,"user_longitude":-0.225},
-    # Central-west north
     {"ne_lat":51.553,"ne_lng":-0.2138,"sw_lat":51.540,"sw_lng":-0.2363,"user_latitude":51.545,"user_longitude":-0.225},
-    # Central-east south
     {"ne_lat":51.540,"ne_lng":-0.1900,"sw_lat":51.527,"sw_lng":-0.2138,"user_latitude":51.533,"user_longitude":-0.200},
-    # Central-east north
     {"ne_lat":51.553,"ne_lng":-0.1900,"sw_lat":51.540,"sw_lng":-0.2138,"user_latitude":51.545,"user_longitude":-0.200},
-    # Far east south (catches Malvern, Cambridge Ave, Coventry)
     {"ne_lat":51.537,"ne_lng":-0.1880,"sw_lat":51.525,"sw_lng":-0.2000,"user_latitude":51.531,"user_longitude":-0.194},
-    # Far east north (catches Brondesbury, Priory Park)
     {"ne_lat":51.545,"ne_lng":-0.1880,"sw_lat":51.537,"sw_lng":-0.2000,"user_latitude":51.540,"user_longitude":-0.194},
 ]
 
@@ -43,9 +32,12 @@ BRE1 = [
 ]
 
 def in_bre1(lat, lng):
-    n = len(BRE1); inside = False; j = n - 1
+    n = len(BRE1)
+    inside = False
+    j = n - 1
     for i in range(n):
-        yi, xi = BRE1[i]; yj, xj = BRE1[j]
+        yi, xi = BRE1[i]
+        yj, xj = BRE1[j]
         if ((yi > lat) != (yj > lat)) and (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi):
             inside = not inside
         j = i
@@ -58,14 +50,57 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if self.path.startswith("/api/bikes"):
             self.get_bikes()
         elif self.path == "/api/test":
-            import cloudscraper as cs2
-            s2 = cs2.create_scraper()
+            self.test_lime()
+        elif self.path == "/" or self.path == "/index.html":
+            self.path = "/index.html"
+            super().do_GET()
+        else:
+            super().do_GET()
+
+    def test_lime(self):
+        try:
+            hdrs = {"Authorization":"Bearer "+TOKEN,"Platform":"iOS","App-Version":"3.248.1","Content-Type":"application/json","Accept":"application/json"}
+            r = scraper.get("https://web-production.lime.bike/api/rider/v2/map/bike_pins", params={"ne_lat":51.55,"ne_lng":-0.20,"sw_lat":51.53,"sw_lng":-0.22,"user_latitude":51.54,"user_longitude":-0.21,"zoom":16}, headers=hdrs)
+            msg = "Status: " + str(r.status_code) + "\nBody: " + r.text[:500]
+        except Exception as e:
+            msg = "Error: " + str(e)
+        self.send_response(200)
+        self.send_header("Content-Type","text/plain")
+        self.end_headers()
+        self.wfile.write(msg.encode())
+
+    def get_bikes(self):
+        hdrs = {"Authorization":"Bearer "+TOKEN,"Platform":"iOS","App-Version":"3.248.1","Content-Type":"application/json","Accept":"application/json"}
+        all_bikes = []
+        seen = set()
+        raw = 0
+        for i, zone in enumerate(ZONES):
             try:
-                r2 = s2.get("https://web-production.lime.bike/api/rider/v2/map/bike_pins", params={"ne_lat":51.55,"ne_lng":-0.20,"sw_lat":51.53,"sw_lng":-0.22,"user_latitude":51.54,"user_longitude":-0.21,"zoom":16}, headers={"Authorization":"Bearer "+TOKEN,"Platform":"iOS","App-Version":"3.248.1"})
-                msg = "Status: " + str(r2.status_code) + " Body: " + r2.text[:500]
-            except Exception as ex:
-                msg = "Error: " + str(ex)
-            self.send_response(200)
-            self.send_header("Content-Type","text/plain")
-            self.end_headers()
-            self.wfile.write(msg.encode())
+                r = scraper.get("https://web-production.lime.bike/api/rider/v2/map/bike_pins", params=dict(zone, zoom=16.0), headers=hdrs)
+                pins = r.json().get("data",{}).get("attributes",{}).get("bike_pins",[])
+                raw += len(pins)
+                added = 0
+                for pin in pins:
+                    bid = pin.get("id","")
+                    if bid in seen:
+                        continue
+                    seen.add(bid)
+                    loc = pin.get("location",{})
+                    lat = loc.get("latitude",0)
+                    lng = loc.get("longitude",0)
+                    if in_bre1(lat, lng):
+                        all_bikes.append({"id":bid,"lat":lat,"lng":lng,"type":pin.get("sub_type_name","unknown")})
+                        added += 1
+                print("Strip " + str(i+1) + ": " + str(len(pins)) + " raw, " + str(added) + " in BRE1")
+            except Exception as e:
+                print("Strip " + str(i+1) + " error: " + str(e))
+        out = json.dumps({"bikes":all_bikes,"count":len(all_bikes)})
+        self.send_response(200)
+        self.send_header("Content-Type","application/json")
+        self.send_header("Access-Control-Allow-Origin","*")
+        self.end_headers()
+        self.wfile.write(out.encode())
+        print("TOTAL: " + str(raw) + " raw -> " + str(len(all_bikes)) + " in BRE1")
+
+print("LimeBay on port " + str(PORT))
+http.server.HTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
