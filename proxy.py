@@ -57,6 +57,21 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/api/bikes"):
             self.get_bikes()
+        elif self.path == "/api/test":
+            import cloudscraper
+            s = cloudscraper.create_scraper()
+            try:
+                r = s.get("https://web-production.lime.bike/api/rider/v2/map/bike_pins", params={"ne_lat":51.55,"ne_lng":-0.20,"sw_lat":51.53,"sw_lng":-0.22,"user_latitude":51.54,"user_longitude":-0.21,"zoom":16}, headers={"Authorization":"Bearer "+TOKEN,"Platform":"iOS","App-Version":"3.248.1"})
+                self.send_response(200)
+                self.send_header("Content-Type","text/plain")
+                self.end_headers()
+                self.wfile.write(f"Status: {r.status_code}
+Body: {r.text[:500]}".encode())
+            except Exception as e:
+                self.send_response(500)
+                self.send_header("Content-Type","text/plain")
+                self.end_headers()
+                self.wfile.write(str(e).encode())
         elif self.path == "/" or self.path == "/index.html":
             self.path = "/index.html"
             super().do_GET()
@@ -89,6 +104,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                         added += 1
                 print(f"  Strip {i+1}: {len(pins)} raw, {added} in BRE1" + (" [CAPPED]" if len(pins)>=200 else ""))
             except Exception as e:
+                import traceback
+                traceback.print_exc()
                 print(f"  Strip {i+1} error: {e}")
         out = json.dumps({"bikes":all_bikes,"count":len(all_bikes)})
         self.send_response(200)
