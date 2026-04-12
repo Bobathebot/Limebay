@@ -58,64 +58,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if self.path.startswith("/api/bikes"):
             self.get_bikes()
         elif self.path == "/api/test":
-            import cloudscraper
-            s = cloudscraper.create_scraper()
+            import cloudscraper as cs2
+            s2 = cs2.create_scraper()
             try:
-                r = s.get("https://web-production.lime.bike/api/rider/v2/map/bike_pins", params={"ne_lat":51.55,"ne_lng":-0.20,"sw_lat":51.53,"sw_lng":-0.22,"user_latitude":51.54,"user_longitude":-0.21,"zoom":16}, headers={"Authorization":"Bearer "+TOKEN,"Platform":"iOS","App-Version":"3.248.1"})
-                self.send_response(200)
-                self.send_header("Content-Type","text/plain")
-                self.end_headers()
-                self.wfile.write(f"Status: {r.status_code}
-Body: {r.text[:500]}".encode())
-            except Exception as e:
-                self.send_response(500)
-                self.send_header("Content-Type","text/plain")
-                self.end_headers()
-                self.wfile.write(str(e).encode())
-        elif self.path == "/" or self.path == "/index.html":
-            self.path = "/index.html"
-            super().do_GET()
-        else:
-            super().do_GET()
-
-    def get_bikes(self):
-        hdrs = {"Authorization":"Bearer "+TOKEN,"Platform":"iOS","App-Version":"3.248.1","Content-Type":"application/json","Accept":"application/json"}
-        all_bikes = []
-        seen = set()
-        raw = 0
-        capped = 0
-        for i, zone in enumerate(ZONES):
-            try:
-                r = scraper.get("https://web-production.lime.bike/api/rider/v2/map/bike_pins", params={**zone,"zoom":16.0}, headers=hdrs)
-                pins = r.json().get("data",{}).get("attributes",{}).get("bike_pins",[])
-                raw += len(pins)
-                if len(pins) >= 200:
-                    capped += 1
-                added = 0
-                for pin in pins:
-                    bid = pin.get("id","")
-                    if bid in seen: continue
-                    seen.add(bid)
-                    loc = pin.get("location",{})
-                    lat = loc.get("latitude",0)
-                    lng = loc.get("longitude",0)
-                    if in_bre1(lat, lng):
-                        all_bikes.append({"id":bid,"lat":lat,"lng":lng,"type":pin.get("sub_type_name","unknown")})
-                        added += 1
-                print(f"  Strip {i+1}: {len(pins)} raw, {added} in BRE1" + (" [CAPPED]" if len(pins)>=200 else ""))
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                print(f"  Strip {i+1} error: {e}")
-        out = json.dumps({"bikes":all_bikes,"count":len(all_bikes)})
-        self.send_response(200)
-        self.send_header("Content-Type","application/json")
-        self.send_header("Access-Control-Allow-Origin","*")
-        self.end_headers()
-        self.wfile.write(out.encode())
-        print(f"  TOTAL: {raw} raw -> {len(all_bikes)} in BRE1 ({capped} strips capped)")
-
-print(f"LimeBay on http://localhost:{PORT}")
-print(f"  8 strips + BRE1 polygon filter")
-print(f"  8 calls per refresh (same as scrolling the map for 30 secs)")
-http.server.HTTPServer(("",PORT),Handler).serve_forever()
+                r2 = s2.get("https://web-production.lime.bike/api/rider/v2/map/bike_pins", params={"ne_lat":51.55,"ne_lng":-0.20,"sw_lat":51.53,"sw_lng":-0.22,"user_latitude":51.54,"user_longitude":-0.21,"zoom":16}, headers={"Authorization":"Bearer "+TOKEN,"Platform":"iOS","App-Version":"3.248.1"})
+                msg = "Status: " + str(r2.status_code) + " Body: " + r2.text[:500]
+            except Exception as ex:
+                msg = "Error: " + str(ex)
+            self.send_response(200)
+            self.send_header("Content-Type","text/plain")
+            self.end_headers()
+            self.wfile.write(msg.encode())
