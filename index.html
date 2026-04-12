@@ -136,7 +136,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#111;col
 
 <script>
 /* ========== CONFIG ========== */
-var TILE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+var TILE="https://tile.openstreetmap.org/"+"{z}/{x}/{y}"+".png";
 var BAY_RADIUS=25;
 var STORAGE="limebay_v9";
 var SHIFT_KEY="limebay_shift2";
@@ -180,7 +180,7 @@ if(!bays){
 
 /* ========== MAP ========== */
 map=L.map("map",{zoomControl:false}).setView(CENTER,14);
-L.tileLayer(TILE,{attribution:"OSM",maxZoom:19}).addTo(map);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"OSM",maxZoom:19}).addTo(map);
 
 function mkI(e,s){return L.divIcon({html:"<div style='font-size:"+s+"px;text-align:center;line-height:1'>"+e+"</div>",className:"",iconSize:[s,s],iconAnchor:[s/2,s/2]})}
 var iB=mkI("\ud83d\udfe2",16),iR=mkI("\ud83d\udd34",24),iT=mkI("\ud83e\uddf9",24),iD=mkI("\u2705",24),iU=mkI("\ud83d\udfe5",22);
