@@ -5,7 +5,7 @@ from curl_cffi import requests as cffi_requests
 PORT = int(os.environ.get("PORT", 8080))
 TOKEN = "eyJraWQiOiJrcjM1bGx0Ymg1dTIiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX3Rva2VuIjoiWVlKQ1JST05VVTdVUSIsImxvZ2luX2NvdW50Ijo3LCJleHBpcmVzX2F0IjoxNzc1OTk0MTgxLCJpYXQiOjE3NzU5OTQwNjF9.vk_o75En_dyR6ZcwNPWoy4g_C4ROmA4EllfPW48IRL0"
 
-ZONES = [
+BRE1_ZONES = [
     {"ne_lat":51.553,"ne_lng":-0.2588,"sw_lat":51.527,"sw_lng":-0.2820,"user_latitude":51.540,"user_longitude":-0.270},
     {"ne_lat":51.553,"ne_lng":-0.2363,"sw_lat":51.527,"sw_lng":-0.2588,"user_latitude":51.538,"user_longitude":-0.247},
     {"ne_lat":51.540,"ne_lng":-0.2138,"sw_lat":51.527,"sw_lng":-0.2363,"user_latitude":51.533,"user_longitude":-0.225},
@@ -16,7 +16,11 @@ ZONES = [
     {"ne_lat":51.545,"ne_lng":-0.1880,"sw_lat":51.537,"sw_lng":-0.2000,"user_latitude":51.540,"user_longitude":-0.194},
 ]
 
-BRE1 = [
+WM_ZONES = [
+    {"ne_lat":51.527,"ne_lng":-0.148,"sw_lat":51.515,"sw_lng":-0.166,"user_latitude":51.520,"user_longitude":-0.157},
+]
+
+BRE1_POLY = [
     (51.5524661,-0.2571598),(51.5517801,-0.2608551),(51.5483151,-0.2631213),
     (51.5463647,-0.2685598),(51.5437780,-0.2730777),(51.5399374,-0.2775980),
     (51.5387313,-0.2813762),(51.5358572,-0.2779626),(51.5321862,-0.2644704),
@@ -32,48 +36,47 @@ BRE1 = [
 ]
 
 def in_bre1(lat, lng):
-    n = len(BRE1)
+    n = len(BRE1_POLY)
     inside = False
     j = n - 1
     for i in range(n):
-        yi, xi = BRE1[i]
-        yj, xj = BRE1[j]
+        yi, xi = BRE1_POLY[i]
+        yj, xj = BRE1_POLY[j]
         if ((yi > lat) != (yj > lat)) and (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi):
             inside = not inside
         j = i
     return inside
 
+def in_wm(lat, lng):
+    return 51.514 <= lat <= 51.528 and -0.167 <= lng <= -0.147
+
+scraper = cffi_requests
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/api/bikes"):
             self.get_bikes()
-        elif self.path == "/api/test":
-            self.test_lime()
         elif self.path == "/" or self.path == "/index.html":
             self.path = "/index.html"
             super().do_GET()
         else:
             super().do_GET()
 
-    def test_lime(self):
-        try:
-            hdrs = {"Authorization":"Bearer "+TOKEN,"Platform":"iOS","App-Version":"3.248.1","Content-Type":"application/json","Accept":"application/json"}
-            r = cffi_requests.get("https://web-production.lime.bike/api/rider/v2/map/bike_pins", params={"ne_lat":51.55,"ne_lng":-0.20,"sw_lat":51.53,"sw_lng":-0.22,"user_latitude":51.54,"user_longitude":-0.21,"zoom":16}, headers=hdrs, impersonate="chrome")
-            msg = "Status: " + str(r.status_code) + "\nBody: " + r.text[:500]
-        except Exception as e:
-            msg = "Error: " + str(e)
-        self.send_response(200)
-        self.send_header("Content-Type","text/plain")
-        self.end_headers()
-        self.wfile.write(msg.encode())
-
     def get_bikes(self):
+        # Determine zone from query parameter
+        zone = "bre1"
+        if "zone=wm" in self.path:
+            zone = "wm"
+
+        zones = BRE1_ZONES if zone == "bre1" else WM_ZONES
+        filter_fn = in_bre1 if zone == "bre1" else in_wm
+
         hdrs = {"Authorization":"Bearer "+TOKEN,"Platform":"iOS","App-Version":"3.248.1","Content-Type":"application/json","Accept":"application/json"}
         all_bikes = []
         seen = set()
-        for i, zone in enumerate(ZONES):
+        for i, z in enumerate(zones):
             try:
-                r = cffi_requests.get("https://web-production.lime.bike/api/rider/v2/map/bike_pins", params=dict(zone, zoom=16.0), headers=hdrs, impersonate="chrome")
+                r = scraper.get("https://web-production.lime.bike/api/rider/v2/map/bike_pins", params=dict(z, zoom=16.0), headers=hdrs, impersonate="chrome")
                 pins = r.json().get("data",{}).get("attributes",{}).get("bike_pins",[])
                 for pin in pins:
                     bid = pin.get("id","")
@@ -83,9 +86,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     loc = pin.get("location",{})
                     lat = loc.get("latitude",0)
                     lng = loc.get("longitude",0)
-                    if in_bre1(lat, lng):
+                    if filter_fn(lat, lng):
                         all_bikes.append({"id":bid,"lat":lat,"lng":lng,"type":pin.get("sub_type_name","unknown")})
-                print("Strip " + str(i+1) + ": " + str(len(pins)) + " bikes")
+                print("Strip " + str(i+1) + " (" + zone + "): " + str(len(pins)) + " raw")
             except Exception as e:
                 print("Strip " + str(i+1) + " error: " + str(e))
         out = json.dumps({"bikes":all_bikes,"count":len(all_bikes)})
@@ -94,7 +97,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin","*")
         self.end_headers()
         self.wfile.write(out.encode())
-        print("TOTAL: " + str(len(all_bikes)) + " bikes in BRE1")
+        print("TOTAL (" + zone + "): " + str(len(all_bikes)) + " bikes")
 
 print("LimeBay on port " + str(PORT))
 http.server.HTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
