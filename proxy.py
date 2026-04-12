@@ -4,7 +4,7 @@ import http.server, json, os, sys
 import cloudscraper
 
 import os; PORT = int(os.environ.get("PORT", 8080))
-TOKEN = "eyJraWQiOiJrcjM1bGx0Ymg1dTIiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX3Rva2VuIjoiWVlKQ1JST05VVTdVUSIsImxvZ2luX2NvdW50Ijo2LCJleHBpcmVzX2F0IjoxNzc1OTM5ODc4LCJpYXQiOjE3NzU5Mzk3NTh9.n7Q9-QfIMp1YQIHdHNcFvETK6wD6DQ_zGlY7eio_ymA"
+TOKEN = "eyJraWQiOiJrcjM1bGx0Ymg1dTIiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX3Rva2VuIjoiWVlKQ1JST05VVTdVUSIsImxvZ2luX2NvdW50Ijo3LCJleHBpcmVzX2F0IjoxNzc1OTk0MTgxLCJpYXQiOjE3NzU5OTQwNjF9.vk_o75En_dyR6ZcwNPWoy4g_C4ROmA4EllfPW48IRL0"
 
 # 8 strips: longitude range -0.282 to -0.190, each ~0.0115 wide
 # Also split north/south at 51.540 for the dense middle strips
