@@ -73,21 +73,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#111;col
   <div style="font-size:16px;font-weight:600;color:#32D74B;margin-bottom:8px" id="cameraTitle">Take Photo</div>
   <div style="position:relative;width:300px;margin:0 auto">
     <video id="camVideo" autoplay playsinline style="width:300px;border-radius:8px;background:#000"></video>
-    <div id="camOverlay" style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);padding:8px 10px;border-radius:0 0 8px 8px;font-family:-apple-system,sans-serif">
-      <div style="color:#FF9F0A;font-size:12px;font-weight:700" id="overlayTime">--</div>
-      <div style="color:#fff;font-size:11px" id="overlayAddr">Detecting location...</div>
-      <div style="color:#aaa;font-size:10px" id="overlayCoords">--</div>
+    <div id="camOverlay" style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.75);padding:10px 12px;border-radius:0 0 8px 8px;font-family:-apple-system,sans-serif;backdrop-filter:blur(4px)">
+      <div style="color:#FF9F0A;font-size:13px;font-weight:700;margin-bottom:2px" id="overlayTime">--</div>
+      <div style="color:#fff;font-size:11px;line-height:1.4" id="overlayAddr">Detecting location...</div>
+      <div style="color:#aaa;font-size:10px;margin-top:2px" id="overlayCoords">--</div>
     </div>
   </div>
   <canvas id="camCanvas" style="display:none"></canvas>
   <img id="camPreview" style="width:300px;border-radius:8px;display:none;margin-top:8px">
   <div id="cameraButtons" style="margin-top:8px">
-    <button style="background:#32D74B;color:#000" onclick="takePhoto()">Snap</button>
+    <button style="background:#32D74B;color:#000" onclick="takePhoto()">Snap Before</button>
+    <button style="background:#0A84FF;color:#fff" onclick="switchCam()">Switch Lens</button>
     <button style="background:#333;color:#fff" onclick="closeCam()">Cancel</button>
   </div>
   <div id="shareButtons" style="display:none;margin-top:8px">
-    <button style="background:#3DB551;color:#fff" onclick="shareToSlack()">Share to Slack</button>
-    <button style="background:#0A84FF;color:#fff" onclick="savePhoto()">Save Photo</button>
+    <button style="background:#FF9F0A;color:#000" onclick="takeAfterPhoto()">Snap After</button>
+    <button style="background:#3DB551;color:#fff" onclick="shareToSlack()">Share All to Slack</button>
+    <button style="background:#0A84FF;color:#fff" onclick="savePhoto()">Save Photos</button>
     <button style="background:#333;color:#fff" onclick="closeCam()">Done</button>
   </div>
 </div>
@@ -196,6 +198,40 @@ function savePhoto(){
   a.click();
   toast("Photo saved!");
 }
+var camFacing="environment";
+var camPhotos=[];
+
+function switchCam(){
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  camFacing=camFacing==="environment"?"user":"environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    toast(camFacing==="user"?"Front camera":"Back camera");
+  }).catch(function(e){toast("Lens switch failed");});
+}
+
+function takeAfterPhoto(){
+  document.getElementById("camPreview").style.display="none";
+  document.getElementById("shareButtons").style.display="none";
+  document.getElementById("cameraButtons").style.display="block";
+  document.getElementById("camVideo").style.display="block";
+  document.getElementById("camOverlay").style.display="block";
+  var btn=document.querySelector("#cameraButtons button");
+  btn.textContent="Snap After";
+  btn.style.background="#0A84FF";
+  if(camBlob)camPhotos.push(camBlob);
+  camFacing="environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    camInterval=setInterval(function(){
+      var now=new Date();
+      var mm=["January","February","March","April","May","June","July","August","September","October","November","December"];
+      var dd=now.getDate();var sf="th";if(dd==1||dd==21||dd==31)sf="st";if(dd==2||dd==22)sf="nd";if(dd==3||dd==23)sf="rd";
+      document.getElementById("overlayTime").textContent=dd+sf+" "+mm[now.getMonth()]+" "+now.getFullYear()+" "+now.toLocaleTimeString("en-GB");
+    },1000);
+  }).catch(function(e){toast("Camera error");});
+}
+
 function closeCam(){
   if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
   document.getElementById("cameraPopup").style.display="none";
@@ -217,7 +253,7 @@ function openCamera(idx){
   document.getElementById("cameraButtons").style.display="block";
   document.getElementById("camVideo").style.display="block";
   document.getElementById("camOverlay").style.display="block";
-  camLat=userLat;camLng=userLng;camAddr="Detecting...";
+  camLat=userLat;camLng=userLng;camAddr="Detecting...";camPhotos=[];camAddrLines=[];
   navigator.geolocation.getCurrentPosition(function(p){
     camLat=p.coords.latitude;camLng=p.coords.longitude;
     document.getElementById("overlayCoords").textContent=camLat.toFixed(5)+"N  "+Math.abs(camLng).toFixed(5)+"W";
@@ -264,7 +300,7 @@ function takePhoto(){
   var lineHeight=fontSize*1.5;
   var boxHeight=lines.length*lineHeight+padding*2;
   var boxY=canvas.height-boxHeight;
-  ctx.fillStyle="rgba(0,0,0,0.55)";
+  ctx.fillStyle="rgba(0,0,0,0.75)";
   ctx.fillRect(0,boxY,canvas.width,boxHeight);
   ctx.shadowColor="rgba(0,0,0,0.9)";
   ctx.shadowBlur=3;
@@ -288,13 +324,16 @@ function takePhoto(){
 }
 
 function shareToSlack(){
-  if(!camBlob)return;
+  if(camBlob)camPhotos.push(camBlob);
+  if(!camPhotos.length)return;
   var bay=bays[camBayIdx];
-  var fname=bay.name.replace(/ /g,"_")+"_"+Date.now()+".jpg";
-  var file=new File([camBlob],fname,{type:"image/jpeg"});
-  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-    navigator.share({text:camMsg,files:[file]}).then(function(){
-      toast("Shared!");closeCam();
+  var files=camPhotos.map(function(blob,i){
+    var label=i==0?"before":"after";
+    return new File([blob],bay.name.replace(/ /g,"_")+"_"+label+"_"+Date.now()+".jpg",{type:"image/jpeg"});
+  });
+  if(navigator.share&&navigator.canShare&&navigator.canShare({files:files})){
+    navigator.share({text:camMsg,files:files}).then(function(){
+      toast("Shared "+files.length+" photos!");camPhotos=[];closeCam();
     }).catch(function(e){
       if(e.name!=="AbortError"){toast("Share cancelled");savePhoto();}
     });
@@ -308,12 +347,50 @@ function shareToSlack(){
 }
 
 function savePhoto(){
-  if(!camBlob)return;
-  var a=document.createElement("a");
-  a.href=URL.createObjectURL(camBlob);
-  a.download=bays[camBayIdx].name.replace(/ /g,"_")+"_"+Date.now()+".jpg";
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-  toast("Photo saved!");
+  if(camBlob)camPhotos.push(camBlob);
+  camPhotos.forEach(function(blob,i){
+    var a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    var label=i==0?"before":"after";
+    a.download=bays[camBayIdx].name.replace(/ /g,"_")+"_"+label+"_"+Date.now()+".jpg";
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+  });
+  toast(camPhotos.length+" photo(s) saved!");
+  camPhotos=[];
+}
+
+var camFacing="environment";
+var camPhotos=[];
+
+function switchCam(){
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  camFacing=camFacing==="environment"?"user":"environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    toast(camFacing==="user"?"Front camera":"Back camera");
+  }).catch(function(e){toast("Lens switch failed");});
+}
+
+function takeAfterPhoto(){
+  document.getElementById("camPreview").style.display="none";
+  document.getElementById("shareButtons").style.display="none";
+  document.getElementById("cameraButtons").style.display="block";
+  document.getElementById("camVideo").style.display="block";
+  document.getElementById("camOverlay").style.display="block";
+  var btn=document.querySelector("#cameraButtons button");
+  btn.textContent="Snap After";
+  btn.style.background="#0A84FF";
+  if(camBlob)camPhotos.push(camBlob);
+  camFacing="environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    camInterval=setInterval(function(){
+      var now=new Date();
+      var mm=["January","February","March","April","May","June","July","August","September","October","November","December"];
+      var dd=now.getDate();var sf="th";if(dd==1||dd==21||dd==31)sf="st";if(dd==2||dd==22)sf="nd";if(dd==3||dd==23)sf="rd";
+      document.getElementById("overlayTime").textContent=dd+sf+" "+mm[now.getMonth()]+" "+now.getFullYear()+" "+now.toLocaleTimeString("en-GB");
+    },1000);
+  }).catch(function(e){toast("Camera error");});
 }
 
 function closeCam(){
@@ -407,6 +484,40 @@ function savePhoto(){
   a.click();
   toast("Photo saved!");
 }
+var camFacing="environment";
+var camPhotos=[];
+
+function switchCam(){
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  camFacing=camFacing==="environment"?"user":"environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    toast(camFacing==="user"?"Front camera":"Back camera");
+  }).catch(function(e){toast("Lens switch failed");});
+}
+
+function takeAfterPhoto(){
+  document.getElementById("camPreview").style.display="none";
+  document.getElementById("shareButtons").style.display="none";
+  document.getElementById("cameraButtons").style.display="block";
+  document.getElementById("camVideo").style.display="block";
+  document.getElementById("camOverlay").style.display="block";
+  var btn=document.querySelector("#cameraButtons button");
+  btn.textContent="Snap After";
+  btn.style.background="#0A84FF";
+  if(camBlob)camPhotos.push(camBlob);
+  camFacing="environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    camInterval=setInterval(function(){
+      var now=new Date();
+      var mm=["January","February","March","April","May","June","July","August","September","October","November","December"];
+      var dd=now.getDate();var sf="th";if(dd==1||dd==21||dd==31)sf="st";if(dd==2||dd==22)sf="nd";if(dd==3||dd==23)sf="rd";
+      document.getElementById("overlayTime").textContent=dd+sf+" "+mm[now.getMonth()]+" "+now.getFullYear()+" "+now.toLocaleTimeString("en-GB");
+    },1000);
+  }).catch(function(e){toast("Camera error");});
+}
+
 function closeCam(){
   if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
   document.getElementById("cameraPopup").style.display="none";
@@ -428,7 +539,7 @@ function openCamera(idx){
   document.getElementById("cameraButtons").style.display="block";
   document.getElementById("camVideo").style.display="block";
   document.getElementById("camOverlay").style.display="block";
-  camLat=userLat;camLng=userLng;camAddr="Detecting...";
+  camLat=userLat;camLng=userLng;camAddr="Detecting...";camPhotos=[];camAddrLines=[];
   navigator.geolocation.getCurrentPosition(function(p){
     camLat=p.coords.latitude;camLng=p.coords.longitude;
     document.getElementById("overlayCoords").textContent=camLat.toFixed(5)+"N  "+Math.abs(camLng).toFixed(5)+"W";
@@ -475,7 +586,7 @@ function takePhoto(){
   var lineHeight=fontSize*1.5;
   var boxHeight=lines.length*lineHeight+padding*2;
   var boxY=canvas.height-boxHeight;
-  ctx.fillStyle="rgba(0,0,0,0.55)";
+  ctx.fillStyle="rgba(0,0,0,0.75)";
   ctx.fillRect(0,boxY,canvas.width,boxHeight);
   ctx.shadowColor="rgba(0,0,0,0.9)";
   ctx.shadowBlur=3;
@@ -499,13 +610,16 @@ function takePhoto(){
 }
 
 function shareToSlack(){
-  if(!camBlob)return;
+  if(camBlob)camPhotos.push(camBlob);
+  if(!camPhotos.length)return;
   var bay=bays[camBayIdx];
-  var fname=bay.name.replace(/ /g,"_")+"_"+Date.now()+".jpg";
-  var file=new File([camBlob],fname,{type:"image/jpeg"});
-  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-    navigator.share({text:camMsg,files:[file]}).then(function(){
-      toast("Shared!");closeCam();
+  var files=camPhotos.map(function(blob,i){
+    var label=i==0?"before":"after";
+    return new File([blob],bay.name.replace(/ /g,"_")+"_"+label+"_"+Date.now()+".jpg",{type:"image/jpeg"});
+  });
+  if(navigator.share&&navigator.canShare&&navigator.canShare({files:files})){
+    navigator.share({text:camMsg,files:files}).then(function(){
+      toast("Shared "+files.length+" photos!");camPhotos=[];closeCam();
     }).catch(function(e){
       if(e.name!=="AbortError"){toast("Share cancelled");savePhoto();}
     });
@@ -519,12 +633,50 @@ function shareToSlack(){
 }
 
 function savePhoto(){
-  if(!camBlob)return;
-  var a=document.createElement("a");
-  a.href=URL.createObjectURL(camBlob);
-  a.download=bays[camBayIdx].name.replace(/ /g,"_")+"_"+Date.now()+".jpg";
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-  toast("Photo saved!");
+  if(camBlob)camPhotos.push(camBlob);
+  camPhotos.forEach(function(blob,i){
+    var a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    var label=i==0?"before":"after";
+    a.download=bays[camBayIdx].name.replace(/ /g,"_")+"_"+label+"_"+Date.now()+".jpg";
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+  });
+  toast(camPhotos.length+" photo(s) saved!");
+  camPhotos=[];
+}
+
+var camFacing="environment";
+var camPhotos=[];
+
+function switchCam(){
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  camFacing=camFacing==="environment"?"user":"environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    toast(camFacing==="user"?"Front camera":"Back camera");
+  }).catch(function(e){toast("Lens switch failed");});
+}
+
+function takeAfterPhoto(){
+  document.getElementById("camPreview").style.display="none";
+  document.getElementById("shareButtons").style.display="none";
+  document.getElementById("cameraButtons").style.display="block";
+  document.getElementById("camVideo").style.display="block";
+  document.getElementById("camOverlay").style.display="block";
+  var btn=document.querySelector("#cameraButtons button");
+  btn.textContent="Snap After";
+  btn.style.background="#0A84FF";
+  if(camBlob)camPhotos.push(camBlob);
+  camFacing="environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    camInterval=setInterval(function(){
+      var now=new Date();
+      var mm=["January","February","March","April","May","June","July","August","September","October","November","December"];
+      var dd=now.getDate();var sf="th";if(dd==1||dd==21||dd==31)sf="st";if(dd==2||dd==22)sf="nd";if(dd==3||dd==23)sf="rd";
+      document.getElementById("overlayTime").textContent=dd+sf+" "+mm[now.getMonth()]+" "+now.getFullYear()+" "+now.toLocaleTimeString("en-GB");
+    },1000);
+  }).catch(function(e){toast("Camera error");});
 }
 
 function closeCam(){
@@ -620,6 +772,40 @@ function savePhoto(){
   a.click();
   toast("Photo saved!");
 }
+var camFacing="environment";
+var camPhotos=[];
+
+function switchCam(){
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  camFacing=camFacing==="environment"?"user":"environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    toast(camFacing==="user"?"Front camera":"Back camera");
+  }).catch(function(e){toast("Lens switch failed");});
+}
+
+function takeAfterPhoto(){
+  document.getElementById("camPreview").style.display="none";
+  document.getElementById("shareButtons").style.display="none";
+  document.getElementById("cameraButtons").style.display="block";
+  document.getElementById("camVideo").style.display="block";
+  document.getElementById("camOverlay").style.display="block";
+  var btn=document.querySelector("#cameraButtons button");
+  btn.textContent="Snap After";
+  btn.style.background="#0A84FF";
+  if(camBlob)camPhotos.push(camBlob);
+  camFacing="environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    camInterval=setInterval(function(){
+      var now=new Date();
+      var mm=["January","February","March","April","May","June","July","August","September","October","November","December"];
+      var dd=now.getDate();var sf="th";if(dd==1||dd==21||dd==31)sf="st";if(dd==2||dd==22)sf="nd";if(dd==3||dd==23)sf="rd";
+      document.getElementById("overlayTime").textContent=dd+sf+" "+mm[now.getMonth()]+" "+now.getFullYear()+" "+now.toLocaleTimeString("en-GB");
+    },1000);
+  }).catch(function(e){toast("Camera error");});
+}
+
 function closeCam(){
   if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
   document.getElementById("cameraPopup").style.display="none";
@@ -641,7 +827,7 @@ function openCamera(idx){
   document.getElementById("cameraButtons").style.display="block";
   document.getElementById("camVideo").style.display="block";
   document.getElementById("camOverlay").style.display="block";
-  camLat=userLat;camLng=userLng;camAddr="Detecting...";
+  camLat=userLat;camLng=userLng;camAddr="Detecting...";camPhotos=[];camAddrLines=[];
   navigator.geolocation.getCurrentPosition(function(p){
     camLat=p.coords.latitude;camLng=p.coords.longitude;
     document.getElementById("overlayCoords").textContent=camLat.toFixed(5)+"N  "+Math.abs(camLng).toFixed(5)+"W";
@@ -688,7 +874,7 @@ function takePhoto(){
   var lineHeight=fontSize*1.5;
   var boxHeight=lines.length*lineHeight+padding*2;
   var boxY=canvas.height-boxHeight;
-  ctx.fillStyle="rgba(0,0,0,0.55)";
+  ctx.fillStyle="rgba(0,0,0,0.75)";
   ctx.fillRect(0,boxY,canvas.width,boxHeight);
   ctx.shadowColor="rgba(0,0,0,0.9)";
   ctx.shadowBlur=3;
@@ -712,13 +898,16 @@ function takePhoto(){
 }
 
 function shareToSlack(){
-  if(!camBlob)return;
+  if(camBlob)camPhotos.push(camBlob);
+  if(!camPhotos.length)return;
   var bay=bays[camBayIdx];
-  var fname=bay.name.replace(/ /g,"_")+"_"+Date.now()+".jpg";
-  var file=new File([camBlob],fname,{type:"image/jpeg"});
-  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-    navigator.share({text:camMsg,files:[file]}).then(function(){
-      toast("Shared!");closeCam();
+  var files=camPhotos.map(function(blob,i){
+    var label=i==0?"before":"after";
+    return new File([blob],bay.name.replace(/ /g,"_")+"_"+label+"_"+Date.now()+".jpg",{type:"image/jpeg"});
+  });
+  if(navigator.share&&navigator.canShare&&navigator.canShare({files:files})){
+    navigator.share({text:camMsg,files:files}).then(function(){
+      toast("Shared "+files.length+" photos!");camPhotos=[];closeCam();
     }).catch(function(e){
       if(e.name!=="AbortError"){toast("Share cancelled");savePhoto();}
     });
@@ -732,12 +921,50 @@ function shareToSlack(){
 }
 
 function savePhoto(){
-  if(!camBlob)return;
-  var a=document.createElement("a");
-  a.href=URL.createObjectURL(camBlob);
-  a.download=bays[camBayIdx].name.replace(/ /g,"_")+"_"+Date.now()+".jpg";
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-  toast("Photo saved!");
+  if(camBlob)camPhotos.push(camBlob);
+  camPhotos.forEach(function(blob,i){
+    var a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    var label=i==0?"before":"after";
+    a.download=bays[camBayIdx].name.replace(/ /g,"_")+"_"+label+"_"+Date.now()+".jpg";
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+  });
+  toast(camPhotos.length+" photo(s) saved!");
+  camPhotos=[];
+}
+
+var camFacing="environment";
+var camPhotos=[];
+
+function switchCam(){
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  camFacing=camFacing==="environment"?"user":"environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    toast(camFacing==="user"?"Front camera":"Back camera");
+  }).catch(function(e){toast("Lens switch failed");});
+}
+
+function takeAfterPhoto(){
+  document.getElementById("camPreview").style.display="none";
+  document.getElementById("shareButtons").style.display="none";
+  document.getElementById("cameraButtons").style.display="block";
+  document.getElementById("camVideo").style.display="block";
+  document.getElementById("camOverlay").style.display="block";
+  var btn=document.querySelector("#cameraButtons button");
+  btn.textContent="Snap After";
+  btn.style.background="#0A84FF";
+  if(camBlob)camPhotos.push(camBlob);
+  camFacing="environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    camInterval=setInterval(function(){
+      var now=new Date();
+      var mm=["January","February","March","April","May","June","July","August","September","October","November","December"];
+      var dd=now.getDate();var sf="th";if(dd==1||dd==21||dd==31)sf="st";if(dd==2||dd==22)sf="nd";if(dd==3||dd==23)sf="rd";
+      document.getElementById("overlayTime").textContent=dd+sf+" "+mm[now.getMonth()]+" "+now.getFullYear()+" "+now.toLocaleTimeString("en-GB");
+    },1000);
+  }).catch(function(e){toast("Camera error");});
 }
 
 function closeCam(){
@@ -837,6 +1064,40 @@ function savePhoto(){
   a.click();
   toast("Photo saved!");
 }
+var camFacing="environment";
+var camPhotos=[];
+
+function switchCam(){
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  camFacing=camFacing==="environment"?"user":"environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    toast(camFacing==="user"?"Front camera":"Back camera");
+  }).catch(function(e){toast("Lens switch failed");});
+}
+
+function takeAfterPhoto(){
+  document.getElementById("camPreview").style.display="none";
+  document.getElementById("shareButtons").style.display="none";
+  document.getElementById("cameraButtons").style.display="block";
+  document.getElementById("camVideo").style.display="block";
+  document.getElementById("camOverlay").style.display="block";
+  var btn=document.querySelector("#cameraButtons button");
+  btn.textContent="Snap After";
+  btn.style.background="#0A84FF";
+  if(camBlob)camPhotos.push(camBlob);
+  camFacing="environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    camInterval=setInterval(function(){
+      var now=new Date();
+      var mm=["January","February","March","April","May","June","July","August","September","October","November","December"];
+      var dd=now.getDate();var sf="th";if(dd==1||dd==21||dd==31)sf="st";if(dd==2||dd==22)sf="nd";if(dd==3||dd==23)sf="rd";
+      document.getElementById("overlayTime").textContent=dd+sf+" "+mm[now.getMonth()]+" "+now.getFullYear()+" "+now.toLocaleTimeString("en-GB");
+    },1000);
+  }).catch(function(e){toast("Camera error");});
+}
+
 function closeCam(){
   if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
   document.getElementById("cameraPopup").style.display="none";
@@ -858,7 +1119,7 @@ function openCamera(idx){
   document.getElementById("cameraButtons").style.display="block";
   document.getElementById("camVideo").style.display="block";
   document.getElementById("camOverlay").style.display="block";
-  camLat=userLat;camLng=userLng;camAddr="Detecting...";
+  camLat=userLat;camLng=userLng;camAddr="Detecting...";camPhotos=[];camAddrLines=[];
   navigator.geolocation.getCurrentPosition(function(p){
     camLat=p.coords.latitude;camLng=p.coords.longitude;
     document.getElementById("overlayCoords").textContent=camLat.toFixed(5)+"N  "+Math.abs(camLng).toFixed(5)+"W";
@@ -905,7 +1166,7 @@ function takePhoto(){
   var lineHeight=fontSize*1.5;
   var boxHeight=lines.length*lineHeight+padding*2;
   var boxY=canvas.height-boxHeight;
-  ctx.fillStyle="rgba(0,0,0,0.55)";
+  ctx.fillStyle="rgba(0,0,0,0.75)";
   ctx.fillRect(0,boxY,canvas.width,boxHeight);
   ctx.shadowColor="rgba(0,0,0,0.9)";
   ctx.shadowBlur=3;
@@ -929,13 +1190,16 @@ function takePhoto(){
 }
 
 function shareToSlack(){
-  if(!camBlob)return;
+  if(camBlob)camPhotos.push(camBlob);
+  if(!camPhotos.length)return;
   var bay=bays[camBayIdx];
-  var fname=bay.name.replace(/ /g,"_")+"_"+Date.now()+".jpg";
-  var file=new File([camBlob],fname,{type:"image/jpeg"});
-  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-    navigator.share({text:camMsg,files:[file]}).then(function(){
-      toast("Shared!");closeCam();
+  var files=camPhotos.map(function(blob,i){
+    var label=i==0?"before":"after";
+    return new File([blob],bay.name.replace(/ /g,"_")+"_"+label+"_"+Date.now()+".jpg",{type:"image/jpeg"});
+  });
+  if(navigator.share&&navigator.canShare&&navigator.canShare({files:files})){
+    navigator.share({text:camMsg,files:files}).then(function(){
+      toast("Shared "+files.length+" photos!");camPhotos=[];closeCam();
     }).catch(function(e){
       if(e.name!=="AbortError"){toast("Share cancelled");savePhoto();}
     });
@@ -949,12 +1213,50 @@ function shareToSlack(){
 }
 
 function savePhoto(){
-  if(!camBlob)return;
-  var a=document.createElement("a");
-  a.href=URL.createObjectURL(camBlob);
-  a.download=bays[camBayIdx].name.replace(/ /g,"_")+"_"+Date.now()+".jpg";
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-  toast("Photo saved!");
+  if(camBlob)camPhotos.push(camBlob);
+  camPhotos.forEach(function(blob,i){
+    var a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    var label=i==0?"before":"after";
+    a.download=bays[camBayIdx].name.replace(/ /g,"_")+"_"+label+"_"+Date.now()+".jpg";
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+  });
+  toast(camPhotos.length+" photo(s) saved!");
+  camPhotos=[];
+}
+
+var camFacing="environment";
+var camPhotos=[];
+
+function switchCam(){
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  camFacing=camFacing==="environment"?"user":"environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    toast(camFacing==="user"?"Front camera":"Back camera");
+  }).catch(function(e){toast("Lens switch failed");});
+}
+
+function takeAfterPhoto(){
+  document.getElementById("camPreview").style.display="none";
+  document.getElementById("shareButtons").style.display="none";
+  document.getElementById("cameraButtons").style.display="block";
+  document.getElementById("camVideo").style.display="block";
+  document.getElementById("camOverlay").style.display="block";
+  var btn=document.querySelector("#cameraButtons button");
+  btn.textContent="Snap After";
+  btn.style.background="#0A84FF";
+  if(camBlob)camPhotos.push(camBlob);
+  camFacing="environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    camInterval=setInterval(function(){
+      var now=new Date();
+      var mm=["January","February","March","April","May","June","July","August","September","October","November","December"];
+      var dd=now.getDate();var sf="th";if(dd==1||dd==21||dd==31)sf="st";if(dd==2||dd==22)sf="nd";if(dd==3||dd==23)sf="rd";
+      document.getElementById("overlayTime").textContent=dd+sf+" "+mm[now.getMonth()]+" "+now.getFullYear()+" "+now.toLocaleTimeString("en-GB");
+    },1000);
+  }).catch(function(e){toast("Camera error");});
 }
 
 function closeCam(){
@@ -1052,6 +1354,40 @@ function savePhoto(){
   a.click();
   toast("Photo saved!");
 }
+var camFacing="environment";
+var camPhotos=[];
+
+function switchCam(){
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  camFacing=camFacing==="environment"?"user":"environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    toast(camFacing==="user"?"Front camera":"Back camera");
+  }).catch(function(e){toast("Lens switch failed");});
+}
+
+function takeAfterPhoto(){
+  document.getElementById("camPreview").style.display="none";
+  document.getElementById("shareButtons").style.display="none";
+  document.getElementById("cameraButtons").style.display="block";
+  document.getElementById("camVideo").style.display="block";
+  document.getElementById("camOverlay").style.display="block";
+  var btn=document.querySelector("#cameraButtons button");
+  btn.textContent="Snap After";
+  btn.style.background="#0A84FF";
+  if(camBlob)camPhotos.push(camBlob);
+  camFacing="environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    camInterval=setInterval(function(){
+      var now=new Date();
+      var mm=["January","February","March","April","May","June","July","August","September","October","November","December"];
+      var dd=now.getDate();var sf="th";if(dd==1||dd==21||dd==31)sf="st";if(dd==2||dd==22)sf="nd";if(dd==3||dd==23)sf="rd";
+      document.getElementById("overlayTime").textContent=dd+sf+" "+mm[now.getMonth()]+" "+now.getFullYear()+" "+now.toLocaleTimeString("en-GB");
+    },1000);
+  }).catch(function(e){toast("Camera error");});
+}
+
 function closeCam(){
   if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
   document.getElementById("cameraPopup").style.display="none";
@@ -1073,7 +1409,7 @@ function openCamera(idx){
   document.getElementById("cameraButtons").style.display="block";
   document.getElementById("camVideo").style.display="block";
   document.getElementById("camOverlay").style.display="block";
-  camLat=userLat;camLng=userLng;camAddr="Detecting...";
+  camLat=userLat;camLng=userLng;camAddr="Detecting...";camPhotos=[];camAddrLines=[];
   navigator.geolocation.getCurrentPosition(function(p){
     camLat=p.coords.latitude;camLng=p.coords.longitude;
     document.getElementById("overlayCoords").textContent=camLat.toFixed(5)+"N  "+Math.abs(camLng).toFixed(5)+"W";
@@ -1120,7 +1456,7 @@ function takePhoto(){
   var lineHeight=fontSize*1.5;
   var boxHeight=lines.length*lineHeight+padding*2;
   var boxY=canvas.height-boxHeight;
-  ctx.fillStyle="rgba(0,0,0,0.55)";
+  ctx.fillStyle="rgba(0,0,0,0.75)";
   ctx.fillRect(0,boxY,canvas.width,boxHeight);
   ctx.shadowColor="rgba(0,0,0,0.9)";
   ctx.shadowBlur=3;
@@ -1144,13 +1480,16 @@ function takePhoto(){
 }
 
 function shareToSlack(){
-  if(!camBlob)return;
+  if(camBlob)camPhotos.push(camBlob);
+  if(!camPhotos.length)return;
   var bay=bays[camBayIdx];
-  var fname=bay.name.replace(/ /g,"_")+"_"+Date.now()+".jpg";
-  var file=new File([camBlob],fname,{type:"image/jpeg"});
-  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-    navigator.share({text:camMsg,files:[file]}).then(function(){
-      toast("Shared!");closeCam();
+  var files=camPhotos.map(function(blob,i){
+    var label=i==0?"before":"after";
+    return new File([blob],bay.name.replace(/ /g,"_")+"_"+label+"_"+Date.now()+".jpg",{type:"image/jpeg"});
+  });
+  if(navigator.share&&navigator.canShare&&navigator.canShare({files:files})){
+    navigator.share({text:camMsg,files:files}).then(function(){
+      toast("Shared "+files.length+" photos!");camPhotos=[];closeCam();
     }).catch(function(e){
       if(e.name!=="AbortError"){toast("Share cancelled");savePhoto();}
     });
@@ -1164,12 +1503,50 @@ function shareToSlack(){
 }
 
 function savePhoto(){
-  if(!camBlob)return;
-  var a=document.createElement("a");
-  a.href=URL.createObjectURL(camBlob);
-  a.download=bays[camBayIdx].name.replace(/ /g,"_")+"_"+Date.now()+".jpg";
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-  toast("Photo saved!");
+  if(camBlob)camPhotos.push(camBlob);
+  camPhotos.forEach(function(blob,i){
+    var a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    var label=i==0?"before":"after";
+    a.download=bays[camBayIdx].name.replace(/ /g,"_")+"_"+label+"_"+Date.now()+".jpg";
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+  });
+  toast(camPhotos.length+" photo(s) saved!");
+  camPhotos=[];
+}
+
+var camFacing="environment";
+var camPhotos=[];
+
+function switchCam(){
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  camFacing=camFacing==="environment"?"user":"environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    toast(camFacing==="user"?"Front camera":"Back camera");
+  }).catch(function(e){toast("Lens switch failed");});
+}
+
+function takeAfterPhoto(){
+  document.getElementById("camPreview").style.display="none";
+  document.getElementById("shareButtons").style.display="none";
+  document.getElementById("cameraButtons").style.display="block";
+  document.getElementById("camVideo").style.display="block";
+  document.getElementById("camOverlay").style.display="block";
+  var btn=document.querySelector("#cameraButtons button");
+  btn.textContent="Snap After";
+  btn.style.background="#0A84FF";
+  if(camBlob)camPhotos.push(camBlob);
+  camFacing="environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    camInterval=setInterval(function(){
+      var now=new Date();
+      var mm=["January","February","March","April","May","June","July","August","September","October","November","December"];
+      var dd=now.getDate();var sf="th";if(dd==1||dd==21||dd==31)sf="st";if(dd==2||dd==22)sf="nd";if(dd==3||dd==23)sf="rd";
+      document.getElementById("overlayTime").textContent=dd+sf+" "+mm[now.getMonth()]+" "+now.getFullYear()+" "+now.toLocaleTimeString("en-GB");
+    },1000);
+  }).catch(function(e){toast("Camera error");});
 }
 
 function closeCam(){
@@ -1262,6 +1639,40 @@ function savePhoto(){
   a.click();
   toast("Photo saved!");
 }
+var camFacing="environment";
+var camPhotos=[];
+
+function switchCam(){
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  camFacing=camFacing==="environment"?"user":"environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    toast(camFacing==="user"?"Front camera":"Back camera");
+  }).catch(function(e){toast("Lens switch failed");});
+}
+
+function takeAfterPhoto(){
+  document.getElementById("camPreview").style.display="none";
+  document.getElementById("shareButtons").style.display="none";
+  document.getElementById("cameraButtons").style.display="block";
+  document.getElementById("camVideo").style.display="block";
+  document.getElementById("camOverlay").style.display="block";
+  var btn=document.querySelector("#cameraButtons button");
+  btn.textContent="Snap After";
+  btn.style.background="#0A84FF";
+  if(camBlob)camPhotos.push(camBlob);
+  camFacing="environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    camInterval=setInterval(function(){
+      var now=new Date();
+      var mm=["January","February","March","April","May","June","July","August","September","October","November","December"];
+      var dd=now.getDate();var sf="th";if(dd==1||dd==21||dd==31)sf="st";if(dd==2||dd==22)sf="nd";if(dd==3||dd==23)sf="rd";
+      document.getElementById("overlayTime").textContent=dd+sf+" "+mm[now.getMonth()]+" "+now.getFullYear()+" "+now.toLocaleTimeString("en-GB");
+    },1000);
+  }).catch(function(e){toast("Camera error");});
+}
+
 function closeCam(){
   if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
   document.getElementById("cameraPopup").style.display="none";
@@ -1283,7 +1694,7 @@ function openCamera(idx){
   document.getElementById("cameraButtons").style.display="block";
   document.getElementById("camVideo").style.display="block";
   document.getElementById("camOverlay").style.display="block";
-  camLat=userLat;camLng=userLng;camAddr="Detecting...";
+  camLat=userLat;camLng=userLng;camAddr="Detecting...";camPhotos=[];camAddrLines=[];
   navigator.geolocation.getCurrentPosition(function(p){
     camLat=p.coords.latitude;camLng=p.coords.longitude;
     document.getElementById("overlayCoords").textContent=camLat.toFixed(5)+"N  "+Math.abs(camLng).toFixed(5)+"W";
@@ -1330,7 +1741,7 @@ function takePhoto(){
   var lineHeight=fontSize*1.5;
   var boxHeight=lines.length*lineHeight+padding*2;
   var boxY=canvas.height-boxHeight;
-  ctx.fillStyle="rgba(0,0,0,0.55)";
+  ctx.fillStyle="rgba(0,0,0,0.75)";
   ctx.fillRect(0,boxY,canvas.width,boxHeight);
   ctx.shadowColor="rgba(0,0,0,0.9)";
   ctx.shadowBlur=3;
@@ -1354,13 +1765,16 @@ function takePhoto(){
 }
 
 function shareToSlack(){
-  if(!camBlob)return;
+  if(camBlob)camPhotos.push(camBlob);
+  if(!camPhotos.length)return;
   var bay=bays[camBayIdx];
-  var fname=bay.name.replace(/ /g,"_")+"_"+Date.now()+".jpg";
-  var file=new File([camBlob],fname,{type:"image/jpeg"});
-  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-    navigator.share({text:camMsg,files:[file]}).then(function(){
-      toast("Shared!");closeCam();
+  var files=camPhotos.map(function(blob,i){
+    var label=i==0?"before":"after";
+    return new File([blob],bay.name.replace(/ /g,"_")+"_"+label+"_"+Date.now()+".jpg",{type:"image/jpeg"});
+  });
+  if(navigator.share&&navigator.canShare&&navigator.canShare({files:files})){
+    navigator.share({text:camMsg,files:files}).then(function(){
+      toast("Shared "+files.length+" photos!");camPhotos=[];closeCam();
     }).catch(function(e){
       if(e.name!=="AbortError"){toast("Share cancelled");savePhoto();}
     });
@@ -1374,12 +1788,50 @@ function shareToSlack(){
 }
 
 function savePhoto(){
-  if(!camBlob)return;
-  var a=document.createElement("a");
-  a.href=URL.createObjectURL(camBlob);
-  a.download=bays[camBayIdx].name.replace(/ /g,"_")+"_"+Date.now()+".jpg";
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-  toast("Photo saved!");
+  if(camBlob)camPhotos.push(camBlob);
+  camPhotos.forEach(function(blob,i){
+    var a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    var label=i==0?"before":"after";
+    a.download=bays[camBayIdx].name.replace(/ /g,"_")+"_"+label+"_"+Date.now()+".jpg";
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+  });
+  toast(camPhotos.length+" photo(s) saved!");
+  camPhotos=[];
+}
+
+var camFacing="environment";
+var camPhotos=[];
+
+function switchCam(){
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  camFacing=camFacing==="environment"?"user":"environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    toast(camFacing==="user"?"Front camera":"Back camera");
+  }).catch(function(e){toast("Lens switch failed");});
+}
+
+function takeAfterPhoto(){
+  document.getElementById("camPreview").style.display="none";
+  document.getElementById("shareButtons").style.display="none";
+  document.getElementById("cameraButtons").style.display="block";
+  document.getElementById("camVideo").style.display="block";
+  document.getElementById("camOverlay").style.display="block";
+  var btn=document.querySelector("#cameraButtons button");
+  btn.textContent="Snap After";
+  btn.style.background="#0A84FF";
+  if(camBlob)camPhotos.push(camBlob);
+  camFacing="environment";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:1280},height:{ideal:960}},audio:false}).then(function(stream){
+    camStream=stream;document.getElementById("camVideo").srcObject=stream;
+    camInterval=setInterval(function(){
+      var now=new Date();
+      var mm=["January","February","March","April","May","June","July","August","September","October","November","December"];
+      var dd=now.getDate();var sf="th";if(dd==1||dd==21||dd==31)sf="st";if(dd==2||dd==22)sf="nd";if(dd==3||dd==23)sf="rd";
+      document.getElementById("overlayTime").textContent=dd+sf+" "+mm[now.getMonth()]+" "+now.getFullYear()+" "+now.toLocaleTimeString("en-GB");
+    },1000);
+  }).catch(function(e){toast("Camera error");});
 }
 
 function closeCam(){
