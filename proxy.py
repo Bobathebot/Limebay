@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 import http.server, json, os, sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'venv', 'lib'))
-for d in os.listdir(os.path.join(os.path.dirname(__file__), 'venv', 'lib')):
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'venv', 'lib', d, 'site-packages'))
 import cloudscraper
 
 import os; PORT = int(os.environ.get("PORT", 8080))
