@@ -49,6 +49,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#111;col
 <div class="popup-overlay" id="copyPopup"><div style="font-size:14px;font-weight:600;color:#32D74B;margin-bottom:8px">Tap to select then Copy</div><textarea id="copyText" readonly></textarea><button style="background:#333;color:#fff" onclick="document.getElementById('copyPopup').style.display='none'">Done</button></div>
 <div class="popup-overlay" id="tidyPopup"><h3 id="tidyPopupTitle" style="color:#32D74B;margin-bottom:12px"></h3><div id="tidyPopupLabel" style="color:#aaa;font-size:13px;margin-bottom:10px"></div><button style="background:#32D74B;color:#000" onclick="confirmTidy('tidy')">Tidy</button><button style="background:#0A84FF;color:#fff" onclick="confirmTidy('tidied')">Tidied</button><button style="background:#333;color:#fff" onclick="closeTidyPopup()">Cancel</button></div>
 <div id="bayPanel"><button class="close-panel" onclick="closeBayPanel()">X</button><h2>My Bays (<span id="panelCount"></span>)</h2><div style="margin-bottom:12px;display:flex;gap:8px"><button class="btn bg" style="padding:8px" onclick="filterBays('all')">All</button><button class="btn bo" style="padding:8px" onclick="filterBays('todo')">To Tidy</button><button class="btn bk" style="padding:8px" onclick="filterBays('tidied')">Tidied</button></div><div id="bayList"></div></div>
+<div class="popup-overlay" id="cameraPopup">
+  <div style="font-size:16px;font-weight:600;color:#32D74B;margin-bottom:8px" id="cameraTitle">Take Photo</div>
+  <video id="camVideo" autoplay playsinline style="width:280px;height:210px;border-radius:8px;background:#000;display:none"></video>
+  <canvas id="camCanvas" style="width:280px;border-radius:8px;display:none"></canvas>
+  <img id="camPreview" style="width:280px;border-radius:8px;display:none">
+  <div id="cameraButtons">
+    <button style="background:#32D74B;color:#000" onclick="takePhoto()">Snap</button>
+    <button style="background:#333;color:#fff" onclick="closeCam()">Cancel</button>
+  </div>
+  <div id="shareButtons" style="display:none">
+    <button style="background:#3DB551;color:#fff" onclick="shareToSlack()">Share to Slack</button>
+    <button style="background:#0A84FF;color:#fff" onclick="savePhoto()">Save Photo</button>
+    <button style="background:#333;color:#fff" onclick="closeCam()">Done</button>
+  </div>
+</div>
 <div id="controls"><div class="row"><button class="btn bg" onclick="refreshBikes()">Refresh + Reset</button><button class="btn bb" onclick="centerOnMe()">My Location</button><button class="btn bp" onclick="nearestBay()">Nearest Bay</button></div><div class="row"><button class="btn bo" onclick="startAddBay()">Add Bay</button><button class="btn bk" onclick="openBayPanel()">Bays</button><button class="btn br" onclick="resetShift()">New Shift</button></div></div>
 <script>
 var TILE_URL="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -72,27 +87,555 @@ function centerOnMe(){map.setView([userLat,userLng],15)}
 function dist(a,b,c,d){var R=6371000,dL=(c-a)*Math.PI/180,dN=(d-b)*Math.PI/180;var x=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dN/2)*Math.sin(dN/2);return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))}
 function nearestBay(){var u=bays.filter(function(b){return!b.tidyState});if(!u.length){toast("All bays tidied!");return}var n=null,m=Infinity;u.forEach(function(b){var d2=dist(userLat,userLng,b.lat,b.lng);if(d2<m){m=d2;n=b}});var i=bays.indexOf(n);map.setView([n.lat,n.lng],16);if(bayMarkers[i])bayMarkers[i].openPopup();var ds=m<1000?Math.round(m)+"m":(m/1000).toFixed(1)+"km";toast(n.name+" - "+ds+" away")}
 function openTidyPopup(i){pendingTidyIdx=i;document.getElementById("tidyPopupTitle").textContent=bays[i].name;document.getElementById("tidyPopupLabel").textContent=bays[i].isRedStar?"Red star bay":"Detected bay";document.getElementById("tidyPopup").style.display="block"}
-function confirmTidy(state){if(pendingTidyIdx===null)return;if(!shiftStart){shiftStart=Date.now();localStorage.setItem(SHIFT_KEY,shiftStart)}var b=bays[pendingTidyIdx];b.tidyState=state;b.checkedAt=Date.now();var now=new Date();var d=now.toLocaleDateString("en-GB");var t=now.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});var label=b.isRedStar?" red star":"";var msg=b.name+label+"\n"+state+"\n"+d+" "+t;var ta=document.getElementById("copyText");ta.value=msg;document.getElementById("copyPopup").style.display="block";ta.focus();ta.select();toast(b.name+" - "+state);saveBays();renderBays();closeTidyPopup()}
+function confirmTidy(state){if(pendingTidyIdx===null)return;if(!shiftStart){shiftStart=Date.now();localStorage.setItem(SHIFT_KEY,shiftStart)}var b=bays[pendingTidyIdx];b.tidyState=state;b.checkedAt=Date.now();var now=new Date();var d=now.toLocaleDateString("en-GB");var t=now.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});var label=b.isRedStar?" red star":"";var msg=b.name+label+"\n"+state+"\n"+d+" "+t;var ta=document.getElementById("copyText");ta.value=msg;document.getElementById("copyPopup").style.display="block";ta.focus();ta.select();toast(b.name+" - "+state);saveBays();
+var camStream=null,camBayIdx=null,camBlob=null,camMsg="";
+function openCamera(idx){
+  camBayIdx=idx;
+  var bay=bays[idx];
+  document.getElementById("cameraTitle").textContent="Photo: "+bay.name;
+  document.getElementById("cameraPopup").style.display="block";
+  document.getElementById("camPreview").style.display="none";
+  document.getElementById("camCanvas").style.display="none";
+  document.getElementById("shareButtons").style.display="none";
+  document.getElementById("cameraButtons").style.display="block";
+  var video=document.getElementById("camVideo");
+  video.style.display="block";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false}).then(function(stream){
+    camStream=stream;video.srcObject=stream;
+  }).catch(function(e){
+    document.getElementById("cameraTitle").textContent="Camera error: "+e.message;
+  });
+}
+function takePhoto(){
+  var video=document.getElementById("camVideo");
+  var canvas=document.getElementById("camCanvas");
+  var ctx=canvas.getContext("2d");
+  canvas.width=video.videoWidth||640;
+  canvas.height=video.videoHeight||480;
+  ctx.drawImage(video,0,0);
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  video.style.display="none";
+  var bay=bays[camBayIdx];
+  var now=new Date();
+  var dateStr=now.toLocaleDateString("en-GB");
+  var timeStr=now.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  var lines=[bay.name+(bay.isRedStar?" [RED STAR]":""),dateStr+" "+timeStr,"Lat: "+bay.lat.toFixed(5)+" Lng: "+bay.lng.toFixed(5)];
+  var fontSize=Math.round(canvas.width*0.035);
+  ctx.font="bold "+fontSize+"px -apple-system,sans-serif";
+  var padding=fontSize*0.6;
+  var lineHeight=fontSize*1.4;
+  var boxHeight=lines.length*lineHeight+padding*2;
+  var boxY=canvas.height-boxHeight-padding;
+  ctx.fillStyle="rgba(0,0,0,0.6)";
+  ctx.fillRect(0,boxY,canvas.width,boxHeight+padding);
+  ctx.fillStyle="#FFFFFF";
+  ctx.shadowColor="rgba(0,0,0,0.8)";
+  ctx.shadowBlur=4;
+  for(var li=0;li<lines.length;li++){
+    ctx.fillText(lines[li],padding,boxY+padding+lineHeight*(li+0.8));
+  }
+  ctx.shadowBlur=0;
+  canvas.toBlob(function(blob){
+    camBlob=blob;
+    var url=URL.createObjectURL(blob);
+    document.getElementById("camPreview").src=url;
+    document.getElementById("camPreview").style.display="block";
+    canvas.style.display="none";
+    document.getElementById("cameraButtons").style.display="none";
+    document.getElementById("shareButtons").style.display="block";
+    var label=bay.isRedStar?" red star":"";
+    var state=bay.tidyState||"tidy";
+    camMsg=bay.name+label+"\n"+state+"\n"+dateStr+" "+timeStr;
+  },"image/jpeg",0.85);
+}
+function shareToSlack(){
+  if(!camBlob)return;
+  var file=new File([camBlob],bays[camBayIdx].name.replace(/ /g,"_")+"_"+Date.now()+".jpg",{type:"image/jpeg"});
+  if(navigator.share){
+    navigator.share({text:camMsg,files:[file]}).then(function(){
+      toast("Shared!");closeCam();
+    }).catch(function(e){
+      if(e.name!=="AbortError")toast("Share failed");
+    });
+  }else{
+    toast("Share not supported - use Save");
+  }
+}
+function savePhoto(){
+  if(!camBlob)return;
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(camBlob);
+  a.download=bays[camBayIdx].name.replace(/ /g,"_")+"_"+Date.now()+".jpg";
+  a.click();
+  toast("Photo saved!");
+}
+function closeCam(){
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  document.getElementById("cameraPopup").style.display="none";
+  document.getElementById("camVideo").style.display="none";
+}
+
+renderBays();closeTidyPopup()}
 function closeTidyPopup(){document.getElementById("tidyPopup").style.display="none";pendingTidyIdx=null}
-function undoBay(i){bays[i].tidyState=null;bays[i].checkedAt=null;saveBays();renderBays();toast(bays[i].name+" unmarked")}
+function undoBay(i){bays[i].tidyState=null;bays[i].checkedAt=null;saveBays();
+var camStream=null,camBayIdx=null,camBlob=null,camMsg="";
+function openCamera(idx){
+  camBayIdx=idx;
+  var bay=bays[idx];
+  document.getElementById("cameraTitle").textContent="Photo: "+bay.name;
+  document.getElementById("cameraPopup").style.display="block";
+  document.getElementById("camPreview").style.display="none";
+  document.getElementById("camCanvas").style.display="none";
+  document.getElementById("shareButtons").style.display="none";
+  document.getElementById("cameraButtons").style.display="block";
+  var video=document.getElementById("camVideo");
+  video.style.display="block";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false}).then(function(stream){
+    camStream=stream;video.srcObject=stream;
+  }).catch(function(e){
+    document.getElementById("cameraTitle").textContent="Camera error: "+e.message;
+  });
+}
+function takePhoto(){
+  var video=document.getElementById("camVideo");
+  var canvas=document.getElementById("camCanvas");
+  var ctx=canvas.getContext("2d");
+  canvas.width=video.videoWidth||640;
+  canvas.height=video.videoHeight||480;
+  ctx.drawImage(video,0,0);
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  video.style.display="none";
+  var bay=bays[camBayIdx];
+  var now=new Date();
+  var dateStr=now.toLocaleDateString("en-GB");
+  var timeStr=now.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  var lines=[bay.name+(bay.isRedStar?" [RED STAR]":""),dateStr+" "+timeStr,"Lat: "+bay.lat.toFixed(5)+" Lng: "+bay.lng.toFixed(5)];
+  var fontSize=Math.round(canvas.width*0.035);
+  ctx.font="bold "+fontSize+"px -apple-system,sans-serif";
+  var padding=fontSize*0.6;
+  var lineHeight=fontSize*1.4;
+  var boxHeight=lines.length*lineHeight+padding*2;
+  var boxY=canvas.height-boxHeight-padding;
+  ctx.fillStyle="rgba(0,0,0,0.6)";
+  ctx.fillRect(0,boxY,canvas.width,boxHeight+padding);
+  ctx.fillStyle="#FFFFFF";
+  ctx.shadowColor="rgba(0,0,0,0.8)";
+  ctx.shadowBlur=4;
+  for(var li=0;li<lines.length;li++){
+    ctx.fillText(lines[li],padding,boxY+padding+lineHeight*(li+0.8));
+  }
+  ctx.shadowBlur=0;
+  canvas.toBlob(function(blob){
+    camBlob=blob;
+    var url=URL.createObjectURL(blob);
+    document.getElementById("camPreview").src=url;
+    document.getElementById("camPreview").style.display="block";
+    canvas.style.display="none";
+    document.getElementById("cameraButtons").style.display="none";
+    document.getElementById("shareButtons").style.display="block";
+    var label=bay.isRedStar?" red star":"";
+    var state=bay.tidyState||"tidy";
+    camMsg=bay.name+label+"\n"+state+"\n"+dateStr+" "+timeStr;
+  },"image/jpeg",0.85);
+}
+function shareToSlack(){
+  if(!camBlob)return;
+  var file=new File([camBlob],bays[camBayIdx].name.replace(/ /g,"_")+"_"+Date.now()+".jpg",{type:"image/jpeg"});
+  if(navigator.share){
+    navigator.share({text:camMsg,files:[file]}).then(function(){
+      toast("Shared!");closeCam();
+    }).catch(function(e){
+      if(e.name!=="AbortError")toast("Share failed");
+    });
+  }else{
+    toast("Share not supported - use Save");
+  }
+}
+function savePhoto(){
+  if(!camBlob)return;
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(camBlob);
+  a.download=bays[camBayIdx].name.replace(/ /g,"_")+"_"+Date.now()+".jpg";
+  a.click();
+  toast("Photo saved!");
+}
+function closeCam(){
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  document.getElementById("cameraPopup").style.display="none";
+  document.getElementById("camVideo").style.display="none";
+}
+
+renderBays();toast(bays[i].name+" unmarked")}
 function countBikesNear(bay){var c=0;bikeMarkers.forEach(function(m){var ll=m.getLatLng();if(dist(bay.lat,bay.lng,ll.lat,ll.lng)<=50)c++});return c}
 function findClusters(bikes){var v={},cl=[];bikes.forEach(function(bk,i){if(v[i])return;var c=[bk];v[i]=true;bikes.forEach(function(o,j){if(v[j])return;if(dist(bk.lat,bk.lng,o.lat,o.lng)<=30){c.push(o);v[j]=true}});if(c.length>=3){var aLat=c.reduce(function(s,b){return s+b.lat},0)/c.length;var aLng=c.reduce(function(s,b){return s+b.lng},0)/c.length;var near=bays.some(function(bay){return dist(bay.lat,bay.lng,aLat,aLng)<50});if(!near)cl.push({lat:aLat,lng:aLng,count:c.length})}});return cl}
 function renderClusters(bikes){clusterMarkers.forEach(function(m){map.removeLayer(m)});clusterMarkers=[];findClusters(bikes).forEach(function(c){var m=L.marker([c.lat,c.lng],{icon:clI(c.count)}).addTo(map).bindPopup("Possible bay - "+c.count+" bikes clustered");clusterMarkers.push(m)})}
-function refreshBikes(){bays.forEach(function(b){b.tidyState=null;b.checkedAt=null});saveBays();renderBays();toast("Refreshing...");fetch("/api/bikes").then(function(r){return r.json()}).then(function(data){bikeMarkers.forEach(function(m){map.removeLayer(m)});bikeMarkers=[];if(data.bikes){data.bikes.forEach(function(bk){bikeMarkers.push(L.marker([bk.lat,bk.lng],{icon:bikeI}).addTo(map))});renderClusters(data.bikes)}document.getElementById("bikeCount").textContent=(data.count||0)+" bikes";toast(data.count+" bikes loaded")}).catch(function(){document.getElementById("bikeCount").textContent="error"})}
+function refreshBikes(){bays.forEach(function(b){b.tidyState=null;b.checkedAt=null});saveBays();
+var camStream=null,camBayIdx=null,camBlob=null,camMsg="";
+function openCamera(idx){
+  camBayIdx=idx;
+  var bay=bays[idx];
+  document.getElementById("cameraTitle").textContent="Photo: "+bay.name;
+  document.getElementById("cameraPopup").style.display="block";
+  document.getElementById("camPreview").style.display="none";
+  document.getElementById("camCanvas").style.display="none";
+  document.getElementById("shareButtons").style.display="none";
+  document.getElementById("cameraButtons").style.display="block";
+  var video=document.getElementById("camVideo");
+  video.style.display="block";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false}).then(function(stream){
+    camStream=stream;video.srcObject=stream;
+  }).catch(function(e){
+    document.getElementById("cameraTitle").textContent="Camera error: "+e.message;
+  });
+}
+function takePhoto(){
+  var video=document.getElementById("camVideo");
+  var canvas=document.getElementById("camCanvas");
+  var ctx=canvas.getContext("2d");
+  canvas.width=video.videoWidth||640;
+  canvas.height=video.videoHeight||480;
+  ctx.drawImage(video,0,0);
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  video.style.display="none";
+  var bay=bays[camBayIdx];
+  var now=new Date();
+  var dateStr=now.toLocaleDateString("en-GB");
+  var timeStr=now.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  var lines=[bay.name+(bay.isRedStar?" [RED STAR]":""),dateStr+" "+timeStr,"Lat: "+bay.lat.toFixed(5)+" Lng: "+bay.lng.toFixed(5)];
+  var fontSize=Math.round(canvas.width*0.035);
+  ctx.font="bold "+fontSize+"px -apple-system,sans-serif";
+  var padding=fontSize*0.6;
+  var lineHeight=fontSize*1.4;
+  var boxHeight=lines.length*lineHeight+padding*2;
+  var boxY=canvas.height-boxHeight-padding;
+  ctx.fillStyle="rgba(0,0,0,0.6)";
+  ctx.fillRect(0,boxY,canvas.width,boxHeight+padding);
+  ctx.fillStyle="#FFFFFF";
+  ctx.shadowColor="rgba(0,0,0,0.8)";
+  ctx.shadowBlur=4;
+  for(var li=0;li<lines.length;li++){
+    ctx.fillText(lines[li],padding,boxY+padding+lineHeight*(li+0.8));
+  }
+  ctx.shadowBlur=0;
+  canvas.toBlob(function(blob){
+    camBlob=blob;
+    var url=URL.createObjectURL(blob);
+    document.getElementById("camPreview").src=url;
+    document.getElementById("camPreview").style.display="block";
+    canvas.style.display="none";
+    document.getElementById("cameraButtons").style.display="none";
+    document.getElementById("shareButtons").style.display="block";
+    var label=bay.isRedStar?" red star":"";
+    var state=bay.tidyState||"tidy";
+    camMsg=bay.name+label+"\n"+state+"\n"+dateStr+" "+timeStr;
+  },"image/jpeg",0.85);
+}
+function shareToSlack(){
+  if(!camBlob)return;
+  var file=new File([camBlob],bays[camBayIdx].name.replace(/ /g,"_")+"_"+Date.now()+".jpg",{type:"image/jpeg"});
+  if(navigator.share){
+    navigator.share({text:camMsg,files:[file]}).then(function(){
+      toast("Shared!");closeCam();
+    }).catch(function(e){
+      if(e.name!=="AbortError")toast("Share failed");
+    });
+  }else{
+    toast("Share not supported - use Save");
+  }
+}
+function savePhoto(){
+  if(!camBlob)return;
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(camBlob);
+  a.download=bays[camBayIdx].name.replace(/ /g,"_")+"_"+Date.now()+".jpg";
+  a.click();
+  toast("Photo saved!");
+}
+function closeCam(){
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  document.getElementById("cameraPopup").style.display="none";
+  document.getElementById("camVideo").style.display="none";
+}
+
+renderBays();toast("Refreshing...");fetch("/api/bikes").then(function(r){return r.json()}).then(function(data){bikeMarkers.forEach(function(m){map.removeLayer(m)});bikeMarkers=[];if(data.bikes){data.bikes.forEach(function(bk){bikeMarkers.push(L.marker([bk.lat,bk.lng],{icon:bikeI}).addTo(map))});renderClusters(data.bikes)}document.getElementById("bikeCount").textContent=(data.count||0)+" bikes";toast(data.count+" bikes loaded")}).catch(function(){document.getElementById("bikeCount").textContent="error"})}
 function updatePace(){if(!shiftStart){document.getElementById("paceDisplay").textContent="Tidy first bay to start";return}var done=bays.filter(function(b){return b.tidyState}).length;if(!done)return;var hrs=(Date.now()-shiftStart)/3600000;if(hrs<.01)return;var bph=(done/hrs).toFixed(1);var col=bph>=6?"#32D74B":bph>=4?"#FF9F0A":"#FF453A";document.getElementById("paceDisplay").innerHTML="<span style='color:"+col+"'>"+bph+" bays/hr</span> (target: 6)"}
 function saveBays(){localStorage.setItem(STORAGE,JSON.stringify(bays));updateStats();updatePace()}
-function renderBays(){Object.keys(bayMarkers).forEach(function(k){map.removeLayer(bayMarkers[k])});bayMarkers={};bays.forEach(function(bay,i){var ic=bayI;if(bay.tidyState==="tidy")ic=tidyI;if(bay.tidyState==="tidied")ic=tidiedI;var cmLink="https://citymapper.com/directions?endcoord="+bay.lat+","+bay.lng+"&endname="+encodeURIComponent(bay.name);var pop="<b>"+bay.name+"</b> "+(bay.isRedStar?"[RED]":"[YLW]")+"<br>"+(bay.tidyState?(bay.tidyState==="tidy"?"Tidy":"Tidied"):"Not done")+"<br>"+(bay.checkedAt?"At: "+new Date(bay.checkedAt).toLocaleTimeString():"")+"<br><a href='"+cmLink+"' target='_blank' style='display:inline-block;margin-top:6px;padding:6px 14px;background:#3DB551;color:#fff;border-radius:6px;font-weight:600;text-decoration:none;font-size:13px'>Navigate</a> "+(bay.tidyState?"<button onclick='undoBay("+i+")' style='margin-top:6px;padding:6px 14px;background:#555;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer'>Undo</button>":"<button onclick='openTidyPopup("+i+")' style='margin-top:6px;padding:6px 14px;background:#32D74B;border:none;border-radius:6px;font-weight:600;cursor:pointer'>Tidy / Tidied</button>")+" <button onclick='deleteBay("+i+")' style='margin-top:6px;padding:6px 10px;background:#FF453A;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer'>Del</button>";bayMarkers[i]=L.marker([bay.lat,bay.lng],{icon:ic}).addTo(map).bindPopup(pop)});updateStats();updatePace()}
+function renderBays(){Object.keys(bayMarkers).forEach(function(k){map.removeLayer(bayMarkers[k])});bayMarkers={};bays.forEach(function(bay,i){var ic=bayI;if(bay.tidyState==="tidy")ic=tidyI;if(bay.tidyState==="tidied")ic=tidiedI;var cmLink="https://citymapper.com/directions?endcoord="+bay.lat+","+bay.lng+"&endname="+encodeURIComponent(bay.name);var pop="<b>"+bay.name+"</b> "+(bay.isRedStar?"[RED]":"[YLW]")+"<br>"+(bay.tidyState?(bay.tidyState==="tidy"?"Tidy":"Tidied"):"Not done")+"<br>"+(bay.checkedAt?"At: "+new Date(bay.checkedAt).toLocaleTimeString():"")+"<br><a href='"+cmLink+"' target='_blank' style='display:inline-block;margin-top:6px;padding:6px 14px;background:#3DB551;color:#fff;border-radius:6px;font-weight:600;text-decoration:none;font-size:13px'>Navigate</a> "+"<button onclick='openCamera("+i+")' style='margin-top:6px;padding:6px 14px;background:#FF9F0A;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px'>Photo</button> "+(bay.tidyState?"<button onclick='undoBay("+i+")' style='margin-top:6px;padding:6px 14px;background:#555;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer'>Undo</button>":"<button onclick='openTidyPopup("+i+")' style='margin-top:6px;padding:6px 14px;background:#32D74B;border:none;border-radius:6px;font-weight:600;cursor:pointer'>Tidy / Tidied</button>")+" <button onclick='deleteBay("+i+")' style='margin-top:6px;padding:6px 10px;background:#FF453A;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer'>Del</button>";bayMarkers[i]=L.marker([bay.lat,bay.lng],{icon:ic}).addTo(map).bindPopup(pop)});updateStats();updatePace()}
 function deleteBay(i){if(confirm("Delete "+bays[i].name+"?")){bays.splice(i,1);saveBays();renderBays()}}
 function updateStats(){var t=bays.length,d=bays.filter(function(b){return b.tidyState}).length;document.getElementById("totalBays").textContent=t;document.getElementById("doneBays").textContent=d;document.getElementById("leftBays").textContent=t-d}
 function startAddBay(){addingBay=true;document.getElementById("addBayMode").style.display="block"}
 map.on("click",function(e){if(!addingBay)return;addingBay=false;document.getElementById("addBayMode").style.display="none";pendingLatLng=e.latlng;document.getElementById("bayNameInput").style.display="block";document.getElementById("newBayName").value="";document.getElementById("newBayName").focus()});
-function confirmAddBay(){var name=document.getElementById("newBayName").value.trim()||"Bay "+(bays.length+1);bays.push({name:name,lat:pendingLatLng.lat,lng:pendingLatLng.lng,isRedStar:false,tidyState:null,checkedAt:null});saveBays();renderBays();document.getElementById("bayNameInput").style.display="none";pendingLatLng=null;toast("Added: "+name)}
+function confirmAddBay(){var name=document.getElementById("newBayName").value.trim()||"Bay "+(bays.length+1);bays.push({name:name,lat:pendingLatLng.lat,lng:pendingLatLng.lng,isRedStar:false,tidyState:null,checkedAt:null});saveBays();
+var camStream=null,camBayIdx=null,camBlob=null,camMsg="";
+function openCamera(idx){
+  camBayIdx=idx;
+  var bay=bays[idx];
+  document.getElementById("cameraTitle").textContent="Photo: "+bay.name;
+  document.getElementById("cameraPopup").style.display="block";
+  document.getElementById("camPreview").style.display="none";
+  document.getElementById("camCanvas").style.display="none";
+  document.getElementById("shareButtons").style.display="none";
+  document.getElementById("cameraButtons").style.display="block";
+  var video=document.getElementById("camVideo");
+  video.style.display="block";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false}).then(function(stream){
+    camStream=stream;video.srcObject=stream;
+  }).catch(function(e){
+    document.getElementById("cameraTitle").textContent="Camera error: "+e.message;
+  });
+}
+function takePhoto(){
+  var video=document.getElementById("camVideo");
+  var canvas=document.getElementById("camCanvas");
+  var ctx=canvas.getContext("2d");
+  canvas.width=video.videoWidth||640;
+  canvas.height=video.videoHeight||480;
+  ctx.drawImage(video,0,0);
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  video.style.display="none";
+  var bay=bays[camBayIdx];
+  var now=new Date();
+  var dateStr=now.toLocaleDateString("en-GB");
+  var timeStr=now.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  var lines=[bay.name+(bay.isRedStar?" [RED STAR]":""),dateStr+" "+timeStr,"Lat: "+bay.lat.toFixed(5)+" Lng: "+bay.lng.toFixed(5)];
+  var fontSize=Math.round(canvas.width*0.035);
+  ctx.font="bold "+fontSize+"px -apple-system,sans-serif";
+  var padding=fontSize*0.6;
+  var lineHeight=fontSize*1.4;
+  var boxHeight=lines.length*lineHeight+padding*2;
+  var boxY=canvas.height-boxHeight-padding;
+  ctx.fillStyle="rgba(0,0,0,0.6)";
+  ctx.fillRect(0,boxY,canvas.width,boxHeight+padding);
+  ctx.fillStyle="#FFFFFF";
+  ctx.shadowColor="rgba(0,0,0,0.8)";
+  ctx.shadowBlur=4;
+  for(var li=0;li<lines.length;li++){
+    ctx.fillText(lines[li],padding,boxY+padding+lineHeight*(li+0.8));
+  }
+  ctx.shadowBlur=0;
+  canvas.toBlob(function(blob){
+    camBlob=blob;
+    var url=URL.createObjectURL(blob);
+    document.getElementById("camPreview").src=url;
+    document.getElementById("camPreview").style.display="block";
+    canvas.style.display="none";
+    document.getElementById("cameraButtons").style.display="none";
+    document.getElementById("shareButtons").style.display="block";
+    var label=bay.isRedStar?" red star":"";
+    var state=bay.tidyState||"tidy";
+    camMsg=bay.name+label+"\n"+state+"\n"+dateStr+" "+timeStr;
+  },"image/jpeg",0.85);
+}
+function shareToSlack(){
+  if(!camBlob)return;
+  var file=new File([camBlob],bays[camBayIdx].name.replace(/ /g,"_")+"_"+Date.now()+".jpg",{type:"image/jpeg"});
+  if(navigator.share){
+    navigator.share({text:camMsg,files:[file]}).then(function(){
+      toast("Shared!");closeCam();
+    }).catch(function(e){
+      if(e.name!=="AbortError")toast("Share failed");
+    });
+  }else{
+    toast("Share not supported - use Save");
+  }
+}
+function savePhoto(){
+  if(!camBlob)return;
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(camBlob);
+  a.download=bays[camBayIdx].name.replace(/ /g,"_")+"_"+Date.now()+".jpg";
+  a.click();
+  toast("Photo saved!");
+}
+function closeCam(){
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  document.getElementById("cameraPopup").style.display="none";
+  document.getElementById("camVideo").style.display="none";
+}
+
+renderBays();document.getElementById("bayNameInput").style.display="none";pendingLatLng=null;toast("Added: "+name)}
 function cancelAddBay(){document.getElementById("bayNameInput").style.display="none";pendingLatLng=null}
 function filterBays(f){currentFilter=f;openBayPanel()}
 function openBayPanel(){var fl=bays;if(currentFilter==="todo")fl=bays.filter(function(b){return!b.tidyState});if(currentFilter==="tidied")fl=bays.filter(function(b){return b.tidyState});fl.sort(function(a,b){return countBikesNear(b)-countBikesNear(a)});var list=document.getElementById("bayList");document.getElementById("panelCount").textContent=fl.length;list.innerHTML=fl.map(function(bay){var ri=bays.indexOf(bay);var bc=countBikesNear(bay);var si=bay.tidyState==="tidy"?"[TIDY]":bay.tidyState==="tidied"?"[TIDIED]":"[TODO]";var bikeLabel=bc>0?" - "+bc+" bikes":"";return"<div class='bay-item "+(bay.tidyState?"done":"")+"'><div><div class='bay-name'>"+si+" "+bay.name+(bay.isRedStar?" [RED]":" [YLW]")+"<span style='color:#32D74B;font-weight:700'>"+bikeLabel+"</span></div><div class='bay-status'>"+(bay.checkedAt?(bay.tidyState||"")+" at "+new Date(bay.checkedAt).toLocaleTimeString():"Not done yet")+"</div></div><div class='bay-actions'><button onclick='flyToBay("+ri+")' style='background:#0A84FF;color:#fff'>Go</button>"+(bay.tidyState?"<button onclick='undoBay("+ri+");openBayPanel()' style='background:#555;color:#fff'>Undo</button>":"<button onclick='openTidyPopup("+ri+");closeBayPanel()' style='background:#32D74B;color:#000'>Tidy</button>")+"</div></div>"}).join("");document.getElementById("bayPanel").style.display="block"}
 function closeBayPanel(){document.getElementById("bayPanel").style.display="none"}
 function flyToBay(i){closeBayPanel();map.setView([bays[i].lat,bays[i].lng],16);if(bayMarkers[i])bayMarkers[i].openPopup()}
-function resetShift(){if(confirm("Reset all bays for new shift?")){bays=bays.filter(function(b){return b.isRedStar});bays.forEach(function(b){b.tidyState=null;b.checkedAt=null});shiftStart=null;localStorage.removeItem(SHIFT_KEY);saveBays();renderBays();toast("New shift started")}}
+function resetShift(){if(confirm("Reset all bays for new shift?")){bays=bays.filter(function(b){return b.isRedStar});bays.forEach(function(b){b.tidyState=null;b.checkedAt=null});shiftStart=null;localStorage.removeItem(SHIFT_KEY);saveBays();
+var camStream=null,camBayIdx=null,camBlob=null,camMsg="";
+function openCamera(idx){
+  camBayIdx=idx;
+  var bay=bays[idx];
+  document.getElementById("cameraTitle").textContent="Photo: "+bay.name;
+  document.getElementById("cameraPopup").style.display="block";
+  document.getElementById("camPreview").style.display="none";
+  document.getElementById("camCanvas").style.display="none";
+  document.getElementById("shareButtons").style.display="none";
+  document.getElementById("cameraButtons").style.display="block";
+  var video=document.getElementById("camVideo");
+  video.style.display="block";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false}).then(function(stream){
+    camStream=stream;video.srcObject=stream;
+  }).catch(function(e){
+    document.getElementById("cameraTitle").textContent="Camera error: "+e.message;
+  });
+}
+function takePhoto(){
+  var video=document.getElementById("camVideo");
+  var canvas=document.getElementById("camCanvas");
+  var ctx=canvas.getContext("2d");
+  canvas.width=video.videoWidth||640;
+  canvas.height=video.videoHeight||480;
+  ctx.drawImage(video,0,0);
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  video.style.display="none";
+  var bay=bays[camBayIdx];
+  var now=new Date();
+  var dateStr=now.toLocaleDateString("en-GB");
+  var timeStr=now.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  var lines=[bay.name+(bay.isRedStar?" [RED STAR]":""),dateStr+" "+timeStr,"Lat: "+bay.lat.toFixed(5)+" Lng: "+bay.lng.toFixed(5)];
+  var fontSize=Math.round(canvas.width*0.035);
+  ctx.font="bold "+fontSize+"px -apple-system,sans-serif";
+  var padding=fontSize*0.6;
+  var lineHeight=fontSize*1.4;
+  var boxHeight=lines.length*lineHeight+padding*2;
+  var boxY=canvas.height-boxHeight-padding;
+  ctx.fillStyle="rgba(0,0,0,0.6)";
+  ctx.fillRect(0,boxY,canvas.width,boxHeight+padding);
+  ctx.fillStyle="#FFFFFF";
+  ctx.shadowColor="rgba(0,0,0,0.8)";
+  ctx.shadowBlur=4;
+  for(var li=0;li<lines.length;li++){
+    ctx.fillText(lines[li],padding,boxY+padding+lineHeight*(li+0.8));
+  }
+  ctx.shadowBlur=0;
+  canvas.toBlob(function(blob){
+    camBlob=blob;
+    var url=URL.createObjectURL(blob);
+    document.getElementById("camPreview").src=url;
+    document.getElementById("camPreview").style.display="block";
+    canvas.style.display="none";
+    document.getElementById("cameraButtons").style.display="none";
+    document.getElementById("shareButtons").style.display="block";
+    var label=bay.isRedStar?" red star":"";
+    var state=bay.tidyState||"tidy";
+    camMsg=bay.name+label+"\n"+state+"\n"+dateStr+" "+timeStr;
+  },"image/jpeg",0.85);
+}
+function shareToSlack(){
+  if(!camBlob)return;
+  var file=new File([camBlob],bays[camBayIdx].name.replace(/ /g,"_")+"_"+Date.now()+".jpg",{type:"image/jpeg"});
+  if(navigator.share){
+    navigator.share({text:camMsg,files:[file]}).then(function(){
+      toast("Shared!");closeCam();
+    }).catch(function(e){
+      if(e.name!=="AbortError")toast("Share failed");
+    });
+  }else{
+    toast("Share not supported - use Save");
+  }
+}
+function savePhoto(){
+  if(!camBlob)return;
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(camBlob);
+  a.download=bays[camBayIdx].name.replace(/ /g,"_")+"_"+Date.now()+".jpg";
+  a.click();
+  toast("Photo saved!");
+}
+function closeCam(){
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  document.getElementById("cameraPopup").style.display="none";
+  document.getElementById("camVideo").style.display="none";
+}
+
+renderBays();toast("New shift started")}}
+
+var camStream=null,camBayIdx=null,camBlob=null,camMsg="";
+function openCamera(idx){
+  camBayIdx=idx;
+  var bay=bays[idx];
+  document.getElementById("cameraTitle").textContent="Photo: "+bay.name;
+  document.getElementById("cameraPopup").style.display="block";
+  document.getElementById("camPreview").style.display="none";
+  document.getElementById("camCanvas").style.display="none";
+  document.getElementById("shareButtons").style.display="none";
+  document.getElementById("cameraButtons").style.display="block";
+  var video=document.getElementById("camVideo");
+  video.style.display="block";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false}).then(function(stream){
+    camStream=stream;video.srcObject=stream;
+  }).catch(function(e){
+    document.getElementById("cameraTitle").textContent="Camera error: "+e.message;
+  });
+}
+function takePhoto(){
+  var video=document.getElementById("camVideo");
+  var canvas=document.getElementById("camCanvas");
+  var ctx=canvas.getContext("2d");
+  canvas.width=video.videoWidth||640;
+  canvas.height=video.videoHeight||480;
+  ctx.drawImage(video,0,0);
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  video.style.display="none";
+  var bay=bays[camBayIdx];
+  var now=new Date();
+  var dateStr=now.toLocaleDateString("en-GB");
+  var timeStr=now.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  var lines=[bay.name+(bay.isRedStar?" [RED STAR]":""),dateStr+" "+timeStr,"Lat: "+bay.lat.toFixed(5)+" Lng: "+bay.lng.toFixed(5)];
+  var fontSize=Math.round(canvas.width*0.035);
+  ctx.font="bold "+fontSize+"px -apple-system,sans-serif";
+  var padding=fontSize*0.6;
+  var lineHeight=fontSize*1.4;
+  var boxHeight=lines.length*lineHeight+padding*2;
+  var boxY=canvas.height-boxHeight-padding;
+  ctx.fillStyle="rgba(0,0,0,0.6)";
+  ctx.fillRect(0,boxY,canvas.width,boxHeight+padding);
+  ctx.fillStyle="#FFFFFF";
+  ctx.shadowColor="rgba(0,0,0,0.8)";
+  ctx.shadowBlur=4;
+  for(var li=0;li<lines.length;li++){
+    ctx.fillText(lines[li],padding,boxY+padding+lineHeight*(li+0.8));
+  }
+  ctx.shadowBlur=0;
+  canvas.toBlob(function(blob){
+    camBlob=blob;
+    var url=URL.createObjectURL(blob);
+    document.getElementById("camPreview").src=url;
+    document.getElementById("camPreview").style.display="block";
+    canvas.style.display="none";
+    document.getElementById("cameraButtons").style.display="none";
+    document.getElementById("shareButtons").style.display="block";
+    var label=bay.isRedStar?" red star":"";
+    var state=bay.tidyState||"tidy";
+    camMsg=bay.name+label+"\n"+state+"\n"+dateStr+" "+timeStr;
+  },"image/jpeg",0.85);
+}
+function shareToSlack(){
+  if(!camBlob)return;
+  var file=new File([camBlob],bays[camBayIdx].name.replace(/ /g,"_")+"_"+Date.now()+".jpg",{type:"image/jpeg"});
+  if(navigator.share){
+    navigator.share({text:camMsg,files:[file]}).then(function(){
+      toast("Shared!");closeCam();
+    }).catch(function(e){
+      if(e.name!=="AbortError")toast("Share failed");
+    });
+  }else{
+    toast("Share not supported - use Save");
+  }
+}
+function savePhoto(){
+  if(!camBlob)return;
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(camBlob);
+  a.download=bays[camBayIdx].name.replace(/ /g,"_")+"_"+Date.now()+".jpg";
+  a.click();
+  toast("Photo saved!");
+}
+function closeCam(){
+  if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;}
+  document.getElementById("cameraPopup").style.display="none";
+  document.getElementById("camVideo").style.display="none";
+}
+
 renderBays();setInterval(updatePace,30000);
 
 </script>
