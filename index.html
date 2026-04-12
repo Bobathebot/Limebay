@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
 <title>LimeBay</title>
-<link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="LimeBay">
@@ -12,23 +11,23 @@
 <script src="leaflet.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#111;color:#fff;overflow:hidden;-webkit-user-select:none;user-select:none}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#111;color:#fff;overflow:hidden}
 #map{width:100vw;height:100vh}
-#topbar{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(0,0,0,.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:10px 16px;display:flex;align-items:center;justify-content:space-between}
-#topbar h1{font-size:17px;color:#32D74B;letter-spacing:-0.3px}
+#topbar{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(0,0,0,.88);backdrop-filter:blur(12px);padding:10px 16px;display:flex;align-items:center;justify-content:space-between}
+#topbar h1{font-size:17px;color:#32D74B}
 #topbar .stats{font-size:12px;color:#888;text-align:right}
 #topbar .stats b{color:#32D74B}
 .pace{font-size:11px;color:#FF9F0A;margin-top:2px}
-#controls{position:fixed;bottom:0;left:0;right:0;z-index:1000;background:rgba(0,0,0,.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:10px 12px;padding-bottom:max(10px,env(safe-area-inset-bottom))}
+#controls{position:fixed;bottom:0;left:0;right:0;z-index:1000;background:rgba(0,0,0,.88);backdrop-filter:blur(12px);padding:10px 12px;padding-bottom:max(10px,env(safe-area-inset-bottom))}
 #controls .row{display:flex;gap:6px;margin-bottom:6px}
 #controls .row:last-child{margin-bottom:0}
-.btn{flex:1;padding:11px 6px;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent}
-.btn:active{opacity:.7;transform:scale(.97)}
+.btn{flex:1;padding:11px 6px;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;text-align:center}
+.btn:active{opacity:.7}
 .bg{background:#32D74B;color:#000}.br{background:#FF453A;color:#fff}.bb{background:#0A84FF;color:#fff}.bo{background:#FF9F0A;color:#000}.bk{background:#333;color:#fff}.bp{background:#BF5AF2;color:#fff}
 #bikeCount{position:fixed;top:50px;right:12px;z-index:1000;background:#32D74B;color:#000;padding:5px 10px;border-radius:16px;font-size:12px;font-weight:700}
-#toast{display:none;position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:3000;background:rgba(50,212,75,.95);color:#000;padding:8px 18px;border-radius:10px;font-size:13px;font-weight:600;white-space:nowrap;pointer-events:none}
-.panel{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:2000;background:rgba(0,0,0,.96);padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch}
-.panel h2{color:#32D74B;margin-bottom:12px;font-size:18px}
+#toast{display:none;position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:3000;background:rgba(50,212,75,.95);color:#000;padding:8px 18px;border-radius:10px;font-size:13px;font-weight:600;white-space:nowrap}
+.panel{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:2000;background:rgba(0,0,0,.96);padding:16px;overflow-y:auto}
+.panel h2{color:#32D74B;margin-bottom:12px}
 .bay-item{background:#1c1c1e;border-radius:12px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
 .bay-item.done{opacity:.45}
 .bay-name{font-size:14px;font-weight:600}
@@ -36,59 +35,35 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#111;col
 .bay-dist{color:#888;font-size:11px;margin-top:2px}
 .bay-actions{display:flex;gap:5px}
 .bay-actions button{padding:6px 10px;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer}
-.close-btn{position:fixed;top:14px;right:14px;z-index:2001;background:#FF453A;color:#fff;border:none;border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer;line-height:34px;text-align:center}
-.popup{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2500;background:#1c1c1e;padding:20px;border-radius:16px;text-align:center;min-width:280px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.close-btn{position:fixed;top:14px;right:14px;z-index:2001;background:#FF453A;color:#fff;border:none;border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer}
+.popup{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2500;background:#1c1c1e;padding:20px;border-radius:16px;text-align:center;min-width:280px;max-width:90vw}
 .popup button{display:block;width:250px;margin:6px auto;padding:12px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer}
 .popup textarea{width:250px;height:60px;padding:10px;border:1px solid #333;border-radius:8px;background:#111;color:#fff;font-size:14px;resize:none;margin-top:8px}
-#camWrap{position:relative;width:280px;margin:0 auto;border-radius:10px;overflow:hidden}
-#camVideo{width:280px;display:block;background:#000}
-#camOvr{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.75);padding:8px 10px;font-family:-apple-system,sans-serif;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
-#camOvr .t1{color:#FF9F0A;font-size:12px;font-weight:700}
-#camOvr .t2{color:#fff;font-size:10px;line-height:1.5;margin-top:2px}
-#camOvr .t3{color:#999;font-size:9px;margin-top:2px}
-#camPreview{width:280px;border-radius:10px;display:none;margin:8px auto 0}
-#camCount{color:#FF9F0A;font-size:12px;font-weight:600;margin-top:4px}
 </style>
 </head>
 <body>
-<div id="topbar">
-  <h1>LimeBay</h1>
-  <div class="stats">Bays: <b id="totalBays">0</b> | Done: <b id="doneBays">0</b> | Left: <b id="leftBays">0</b><div class="pace" id="paceDisplay"></div></div>
-</div>
+<div id="topbar"><h1>LimeBay</h1><div class="stats">Bays: <b id="totalBays">0</b> | Done: <b id="doneBays">0</b> | Left: <b id="leftBays">0</b><div class="pace" id="paceDisplay"></div></div></div>
 <div id="bikeCount">0 bikes</div>
 <div id="toast"></div>
 <div id="map"></div>
+<div class="popup" id="tidyPopup"><div style="font-size:17px;font-weight:700;color:#32D74B;margin-bottom:4px" id="tidyTitle"></div><div style="color:#888;font-size:12px;margin-bottom:12px" id="tidyLabel"></div><button style="background:#32D74B;color:#000" onclick="confirmTidy('tidy')">Tidy</button><button style="background:#0A84FF;color:#fff" onclick="confirmTidy('tidied')">Tidied</button><button style="background:#333;color:#fff" onclick="cP('tidyPopup')">Cancel</button></div>
+<div class="popup" id="copyPopup"><div style="font-size:14px;font-weight:600;color:#32D74B;margin-bottom:4px">Tap text then Copy</div><textarea id="copyText" readonly></textarea><button style="background:#333;color:#fff" onclick="cP('copyPopup')">Done</button></div>
+<div class="panel" id="routePanel"><button class="close-btn" onclick="cP('routePanel')">X</button><h2>Route Plan</h2><div style="color:#888;font-size:12px;margin-bottom:12px" id="routeInfo"></div><div id="routeList"></div></div>
+<div class="panel" id="bayPanel"><button class="close-btn" onclick="cP('bayPanel')">X</button><h2>All Bays (<span id="panelCount"></span>)</h2><div style="margin-bottom:10px;display:flex;gap:6px"><button class="btn bg" style="padding:7px" onclick="fB('all')">All</button><button class="btn bo" style="padding:7px" onclick="fB('todo')">To Tidy</button><button class="btn bk" style="padding:7px" onclick="fB('done')">Done</button></div><div id="bayList"></div></div>
 
-<!-- Tidy popup -->
-<div class="popup" id="tidyPopup">
-  <div style="font-size:17px;font-weight:700;color:#32D74B;margin-bottom:4px" id="tidyTitle"></div>
-  <div style="color:#888;font-size:12px;margin-bottom:12px" id="tidyLabel"></div>
-  <button style="background:#32D74B;color:#000" onclick="confirmTidy('tidy')">Tidy</button>
-  <button style="background:#0A84FF;color:#fff" onclick="confirmTidy('tidied')">Tidied</button>
-  <button style="background:#333;color:#fff" onclick="cP('tidyPopup')">Cancel</button>
-</div>
-
-<!-- Copy popup for iOS -->
-<div class="popup" id="copyPopup">
-  <div style="font-size:14px;font-weight:600;color:#32D74B;margin-bottom:4px">Tap text then Copy</div>
-  <textarea id="copyText" readonly></textarea>
-  <button style="background:#333;color:#fff" onclick="cP('copyPopup')">Done</button>
-</div>
-
-<!-- Camera popup -->
 <div class="popup" id="camPopup" style="min-width:300px">
   <div style="font-size:15px;font-weight:700;color:#32D74B;margin-bottom:8px" id="camTitle">Photo</div>
-  <div id="camWrap">
-    <video id="camVideo" autoplay playsinline></video>
-    <div id="camOvr">
-      <div class="t1" id="oTime">--</div>
-      <div class="t2" id="oAddr">Detecting location...</div>
-      <div class="t3" id="oCoord">--</div>
+  <div style="position:relative;width:280px;margin:0 auto;border-radius:10px;overflow:hidden">
+    <video id="camVideo" autoplay playsinline style="width:280px;display:block;background:#000"></video>
+    <div id="camOvr" style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.75);padding:8px 10px;backdrop-filter:blur(4px)">
+      <div style="color:#FF9F0A;font-size:12px;font-weight:700" id="oTime">--</div>
+      <div style="color:#fff;font-size:10px;line-height:1.5;margin-top:2px" id="oAddr">Detecting...</div>
+      <div style="color:#999;font-size:9px;margin-top:2px" id="oCoord">--</div>
     </div>
   </div>
   <canvas id="camCanvas" style="display:none"></canvas>
-  <img id="camPreview">
-  <div id="camCount"></div>
+  <img id="camPreview" style="width:280px;border-radius:10px;display:none;margin:8px auto 0">
+  <div id="camCount" style="color:#FF9F0A;font-size:12px;font-weight:600;margin-top:4px"></div>
   <div id="camBtns1">
     <button style="background:#32D74B;color:#000" onclick="snapPhoto()">Snap Before</button>
     <button style="background:#333;color:#fff" onclick="closeCam()">Cancel</button>
@@ -100,49 +75,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#111;col
     <button style="background:#333;color:#fff" onclick="closeCam()">Done</button>
   </div>
 </div>
-
-<!-- Route panel -->
-<div class="panel" id="routePanel">
-  <button class="close-btn" onclick="cP('routePanel')">X</button>
-  <h2>Route Plan</h2>
-  <div style="color:#888;font-size:12px;margin-bottom:12px" id="routeInfo"></div>
-  <div id="routeList"></div>
-</div>
-
-<!-- Bay list panel -->
-<div class="panel" id="bayPanel">
-  <button class="close-btn" onclick="cP('bayPanel')">X</button>
-  <h2>All Bays (<span id="panelCount"></span>)</h2>
-  <div style="margin-bottom:10px;display:flex;gap:6px">
-    <button class="btn bg" style="padding:7px" onclick="fB('all')">All</button>
-    <button class="btn bo" style="padding:7px" onclick="fB('todo')">To Tidy</button>
-    <button class="btn bk" style="padding:7px" onclick="fB('done')">Done</button>
-  </div>
-  <div id="bayList"></div>
-</div>
-
-<!-- Controls -->
-<div id="controls">
-  <div class="row">
-    <button class="btn bg" onclick="refreshBikes()">Refresh + Reset</button>
-    <button class="btn bb" onclick="centerMe()">My Location</button>
-  </div>
-  <div class="row">
-    <button class="btn bp" onclick="showRoute()">Route Plan</button>
-    <button class="btn bk" onclick="oP('bayPanel');renderBayPanel('all')">Bays</button>
-    <button class="btn bo" onclick="nearestBay()">Nearest</button>
-  </div>
-</div>
-
+<div id="controls"><div class="row"><button class="btn bg" onclick="refreshBikes()">Refresh + Reset</button><button class="btn bb" onclick="centerMe()">My Location</button></div><div class="row"><button class="btn bp" onclick="showRoute()">Route Plan</button><button class="btn bk" onclick="openBayPanel()">Bays</button><button class="btn bo" onclick="nearestBay()">Nearest</button></div></div>
 <script>
-/* ========== CONFIG ========== */
-var TILE="https://tile.openstreetmap.org/"+"{z}/{x}/{y}"+".png";
 var BAY_RADIUS=25;
-var STORAGE="limebay_v9";
-var SHIFT_KEY="limebay_shift2";
+var STORAGE="limebay_v10";
+var SHIFT_KEY="limebay_shift3";
 var CENTER=[51.5385,-0.2150];
-
-/* ========== DEFAULT BAYS ========== */
 var DBAYS=[
 {n:"Hazel Road",a:51.530683,o:-0.225716},{n:"Station Terrace",a:51.53447,o:-0.219888},
 {n:"Wrentham Avenue",a:51.53544,o:-0.219793},{n:"Harvist Road (East)",a:51.534525,o:-0.205179},
@@ -165,148 +103,32 @@ var DBAYS=[
 {n:"Victoria Road 2",a:51.538751,o:-0.197543},{n:"Aylestone Avenue 2",a:51.542987,o:-0.218791},
 {n:"College Road (Mid)",a:51.53374,o:-0.22561},{n:"College Road (North)",a:51.533638,o:-0.225675}
 ];
-
-/* ========== STATE ========== */
 var map,uMark,bMarks=[],bayMarks={};
 var bays=JSON.parse(localStorage.getItem(STORAGE)||"null");
-var uLat=CENTER[0],uLng=CENTER[1],cFilt="all";
+var uLat=CENTER[0],uLng=CENTER[1];
 var ss=localStorage.getItem(SHIFT_KEY)?parseInt(localStorage.getItem(SHIFT_KEY)):null;
 var pendTidy=null;
-
-if(!bays){
-  bays=DBAYS.map(function(b){return{name:b.n,lat:b.a,lng:b.o,red:true,ts:null,at:null}});
-  localStorage.setItem(STORAGE,JSON.stringify(bays));
-}
-
-/* ========== MAP ========== */
+if(!bays){bays=DBAYS.map(function(b){return{name:b.n,lat:b.a,lng:b.o,red:true,ts:null,at:null}});localStorage.setItem(STORAGE,JSON.stringify(bays))}
 map=L.map("map",{zoomControl:false}).setView(CENTER,14);
-L.tileLayer("https://tile.openstreetmap.org/"+String.fromCharCode(123)+"z"+String.fromCharCode(125)+"/"+String.fromCharCode(123)+"x"+String.fromCharCode(125)+"/"+String.fromCharCode(123)+"y"+String.fromCharCode(125)+".png",{attribution:"OSM",maxZoom:19}).addTo(map);
-
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"OSM",maxZoom:19}).addTo(map);
 function mkI(e,s){return L.divIcon({html:"<div style='font-size:"+s+"px;text-align:center;line-height:1'>"+e+"</div>",className:"",iconSize:[s,s],iconAnchor:[s/2,s/2]})}
 var iB=mkI("\ud83d\udfe2",16),iR=mkI("\ud83d\udd34",24),iT=mkI("\ud83e\uddf9",24),iD=mkI("\u2705",24),iU=mkI("\ud83d\udfe5",22);
-
-/* ========== UTILS ========== */
 function toast(m){var t=document.getElementById("toast");t.textContent=m;t.style.display="block";setTimeout(function(){t.style.display="none"},2500)}
 function oP(id){document.getElementById(id).style.display="block"}
 function cP(id){document.getElementById(id).style.display="none"}
 function dist(a,b,c,d){var R=6371000,dL=(c-a)*Math.PI/180,dN=(d-b)*Math.PI/180;var x=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dN/2)*Math.sin(dN/2);return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))}
 function fmtDist(m){return m<1000?Math.round(m)+"m":(m/1000).toFixed(1)+"km"}
 function bikesAt(bay){var c=0;bMarks.forEach(function(m){var l=m.getLatLng();if(dist(bay.lat,bay.lng,l.lat,l.lng)<=BAY_RADIUS)c++});return c}
-
-/* ========== GPS ========== */
 if(navigator.geolocation){navigator.geolocation.watchPosition(function(p){uLat=p.coords.latitude;uLng=p.coords.longitude;if(uMark)uMark.setLatLng([uLat,uLng]);else uMark=L.marker([uLat,uLng],{icon:iU}).addTo(map)},null,{enableHighAccuracy:true})}
 function centerMe(){map.setView([uLat,uLng],15)}
-
-/* ========== SAVE/STATS ========== */
 function save(){localStorage.setItem(STORAGE,JSON.stringify(bays));stats();pace()}
 function stats(){var t=bays.length,d=bays.filter(function(b){return b.ts}).length;document.getElementById("totalBays").textContent=t;document.getElementById("doneBays").textContent=d;document.getElementById("leftBays").textContent=t-d}
 function pace(){if(!ss){document.getElementById("paceDisplay").textContent="";return}var d=bays.filter(function(b){return b.ts}).length;if(!d)return;var h=(Date.now()-ss)/3600000;if(h<.01)return;var bph=(d/h).toFixed(1);var col=bph>=6?"#32D74B":bph>=4?"#FF9F0A":"#FF453A";document.getElementById("paceDisplay").innerHTML="<span style='color:"+col+"'>"+bph+" bph</span>"}
-
-/* ========== TIDY ========== */
 function openTidy(i){pendTidy=i;document.getElementById("tidyTitle").textContent=bays[i].name;document.getElementById("tidyLabel").textContent=bays[i].red?"Red star bay":"Bay";oP("tidyPopup")}
-function confirmTidy(s){if(pendTidy===null)return;if(!ss){ss=Date.now();localStorage.setItem(SHIFT_KEY,ss)}var b=bays[pendTidy];b.ts=s;b.at=Date.now();var label=b.red?" red star":"";var msg=b.name+label+"\n"+s;var ta=document.getElementById("copyText");ta.value=msg;oP("copyPopup");ta.focus();ta.select();toast(b.name+" - "+s);save();renderBays();cP("tidyPopup");pendTidy=null}
-function undoBay(i){bays[i].ts=null;bays[i].at=null;save();renderBays();toast(bays[i].name+" reset")}
-
-/* ========== RENDER BAYS ========== */
-function renderBays(){
-  Object.keys(bayMarks).forEach(function(k){map.removeLayer(bayMarks[k])});bayMarks={};
-  bays.forEach(function(bay,i){
-    var ic=iR;if(bay.ts==="tidy")ic=iT;if(bay.ts==="tidied")ic=iD;
-    var cm="https://citymapper.com/directions?endcoord="+bay.lat+","+bay.lng+"&endname="+encodeURIComponent(bay.name);
-    var bc=bikesAt(bay);
-    var bikeInfo=bc>0?"<span style='color:#32D74B;font-weight:700'>"+bc+" bikes nearby</span><br>":"";
-    var pop="<b>"+bay.name+"</b>"+(bay.red?" <span style='color:#FF453A'>RED</span>":"")+"<br>"+bikeInfo+(bay.ts?(bay.ts==="tidy"?"Tidy":"Tidied"):"Not done")+(bay.at?"<br><span style='color:#888;font-size:11px'>"+new Date(bay.at).toLocaleTimeString()+"</span>":"")+"<br><a href='"+cm+"' target='_blank' style='display:inline-block;margin-top:6px;padding:6px 12px;background:#3DB551;color:#fff;border-radius:6px;font-weight:600;text-decoration:none;font-size:12px'>Navigate</a> <button onclick='openCam("+i+")' style='margin-top:6px;padding:6px 12px;background:#FF9F0A;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px'>Photo</button> "+(bay.ts?"<button onclick='undoBay("+i+")' style='margin-top:6px;padding:6px 12px;background:#555;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px'>Undo</button>":"<button onclick='openTidy("+i+")' style='margin-top:6px;padding:6px 12px;background:#32D74B;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px'>Tidy</button>");
-    bayMarks[i]=L.marker([bay.lat,bay.lng],{icon:ic}).addTo(map).bindPopup(pop);
-  });stats();pace();
-}
-
-/* ========== BIKES ========== */
-function refreshBikes(){
-  bays.forEach(function(b){b.ts=null;b.at=null});save();renderBays();
-  toast("Loading bikes...");
-  fetch("/api/bikes").then(function(r){return r.json()}).then(function(d){
-    bMarks.forEach(function(m){map.removeLayer(m)});bMarks=[];
-    if(d.bikes){d.bikes.forEach(function(bk){bMarks.push(L.marker([bk.lat,bk.lng],{icon:iB}).addTo(map))})}
-    document.getElementById("bikeCount").textContent=(d.count||0)+" bikes";
-    renderBays();
-    toast((d.count||0)+" bikes loaded");
-  }).catch(function(){document.getElementById("bikeCount").textContent="error"});
-}
-
-/* ========== NEAREST BAY ========== */
-function nearestBay(){
-  var u=bays.filter(function(b){return!b.ts});
-  if(!u.length){toast("All done!");return}
-  var n=null,m=Infinity;
-  u.forEach(function(b){var d2=dist(uLat,uLng,b.lat,b.lng);if(d2<m){m=d2;n=b}});
-  var i=bays.indexOf(n);
-  map.setView([n.lat,n.lng],16);
-  if(bayMarks[i])bayMarks[i].openPopup();
-  toast(n.name+" - "+fmtDist(m));
-}
-
-/* ========== ROUTE ALGORITHM ========== */
-function showRoute(){
-  var active=[];
-  bays.forEach(function(b,i){
-    if(b.ts)return;
-    var bc=bikesAt(b);
-    if(bc>0)active.push({bay:b,idx:i,bikes:bc,dist:0});
-  });
-  if(!active.length){toast("No bays with bikes! Hit Refresh");return}
-  // nearest-neighbour chain from current location
-  var route=[];
-  var remaining=active.slice();
-  var curLat=uLat,curLng=uLng;
-  while(remaining.length>0){
-    var best=-1,bestD=Infinity;
-    for(var j=0;j<remaining.length;j++){
-      // weight: distance minus bike bonus (more bikes = more priority)
-      var d=dist(curLat,curLng,remaining[j].bay.lat,remaining[j].bay.lng);
-      var score=d-(remaining[j].bikes*20);
-      if(score<bestD){bestD=score;best=j}
-    }
-    var pick=remaining.splice(best,1)[0];
-    pick.dist=dist(curLat,curLng,pick.bay.lat,pick.bay.lng);
-    route.push(pick);
-    curLat=pick.bay.lat;curLng=pick.bay.lng;
-  }
-  // Render route panel
-  var totalDist=route.reduce(function(s,r){return s+r.dist},0);
-  document.getElementById("routeInfo").textContent=route.length+" bays to visit | ~"+fmtDist(totalDist)+" total walking";
-  var html=route.map(function(r,idx){
-    var cm="https://citymapper.com/directions?endcoord="+r.bay.lat+","+r.bay.lng+"&endname="+encodeURIComponent(r.bay.name);
-    return "<div class='bay-item'><div><div class='bay-name'><span style='color:#FF9F0A;margin-right:6px'>#"+(idx+1)+"</span>"+r.bay.name+"</div><div class='bay-bikes'>"+r.bikes+" bikes</div><div class='bay-dist'>"+fmtDist(r.dist)+(idx==0?" from you":" from #"+idx)+"</div></div><div class='bay-actions'><a href='"+cm+"' target='_blank' style='padding:6px 10px;background:#3DB551;color:#fff;border-radius:8px;text-decoration:none;font-size:11px;font-weight:600'>Go</a><button onclick='openTidy("+r.idx+");cP("routePanel")' style='background:#32D74B;color:#000'>Tidy</button></div></div>"
-  }).join("");
-  document.getElementById("routeList").innerHTML=html;
-  oP("routePanel");
-}
-
-/* ========== BAY LIST PANEL ========== */
-function fB(f){cFilt=f;renderBayPanel(f)}
-function renderBayPanel(f){
-  var fl=bays;
-  if(f==="todo")fl=bays.filter(function(b){return!b.ts});
-  if(f==="done")fl=bays.filter(function(b){return b.ts});
-  fl=fl.slice().sort(function(a,b){return bikesAt(b)-bikesAt(a)});
-  document.getElementById("panelCount").textContent=fl.length;
-  document.getElementById("bayList").innerHTML=fl.map(function(bay){
-    var ri=bays.indexOf(bay);
-    var bc=bikesAt(bay);
-    var d=dist(uLat,uLng,bay.lat,bay.lng);
-    var si=bay.ts?"\u2705":"\ud83d\udd34";
-    var bl=bc>0?" - "+bc+" bikes":"";
-    return "<div class='bay-item "+(bay.ts?"done":"")+"'><div><div class='bay-name'>"+si+" "+bay.name+"<span class='bay-bikes'>"+bl+"</span></div><div class='bay-dist'>"+fmtDist(d)+" away"+(bay.at?" | "+(bay.ts||"")+" at "+new Date(bay.at).toLocaleTimeString():"")+"</div></div><div class='bay-actions'><button onclick='flyTo("+ri+")' style='background:#0A84FF;color:#fff'>Map</button>"+(bay.ts?"<button onclick='undoBay("+ri+");renderBayPanel(""+f+"")' style='background:#555;color:#fff'>Undo</button>":"<button onclick='openTidy("+ri+");cP("bayPanel")' style='background:#32D74B;color:#000'>Tidy</button>")+"</div></div>"
-  }).join("");
-  oP("bayPanel");
-}
-function flyTo(i){cP("bayPanel");map.setView([bays[i].lat,bays[i].lng],16);if(bayMarks[i])bayMarks[i].openPopup()}
-
-/* ========== CAMERA ========== */
-var camS=null,camI=null,camIdx=null,camBlob=null,camPhotos=[],camAddr=[],camLt=0,camLn=0;
-
+function confirmTidy(s){if(pendTidy===null)return;if(!ss){ss=Date.now();localStorage.setItem(SHIFT_KEY,ss)}var b=bays[pendTidy];b.ts=s;b.at=Date.now();var label=b.red?" red star":"";var msg=b.name+label+"\n"+s;var ta=document.getElementById("copyText");ta.value=msg;oP("copyPopup");ta.focus();ta.select();toast(b.name+" - "+s);save();
+var camS=null,camI=null,camIdx=null,camBlob=null,camPhotos=[],camAddrL=[],camLt=0,camLn=0;
 function openCam(idx){
-  camIdx=idx;camPhotos=[];camBlob=null;camAddr=[];
+  camIdx=idx;camPhotos=[];camBlob=null;camAddrL=[];
   document.getElementById("camTitle").textContent=bays[idx].name;
   document.getElementById("camPreview").style.display="none";
   document.getElementById("camBtns2").style.display="none";
@@ -314,10 +136,8 @@ function openCam(idx){
   document.getElementById("camCount").textContent="";
   var btn=document.querySelector("#camBtns1 button");
   btn.textContent="Snap Before";btn.style.background="#32D74B";
-  oP("camPopup");
-  startCam();
+  oP("camPopup");startCam();
 }
-
 function startCam(){
   document.getElementById("camVideo").style.display="block";
   document.getElementById("camOvr").style.display="block";
@@ -329,12 +149,11 @@ function startCam(){
       if(data.address){
         var a=data.address;
         var st=(a.house_number||"")+(a.house_number?" ":"")+( a.road||"");
-        camAddr=[st,a.city||a.town||a.suburb||"London",a.state||a.county||"England",a.postcode||"",a.country||"United Kingdom"];
-        camAddr=camAddr.filter(function(x){return x});
-        document.getElementById("oAddr").innerHTML=camAddr.join("<br>");
+        camAddrL=[st,a.city||a.town||a.suburb||"London",a.state||a.county||"England",a.postcode||"",a.country||"United Kingdom"].filter(function(x){return x});
+        document.getElementById("oAddr").innerHTML=camAddrL.join("<br>");
       }
-    }).catch(function(){camAddr=[bays[camIdx].name];document.getElementById("oAddr").textContent=bays[camIdx].name});
-  },function(){camAddr=[bays[camIdx].name]},{enableHighAccuracy:true});
+    }).catch(function(){camAddrL=[bays[camIdx].name];document.getElementById("oAddr").textContent=bays[camIdx].name});
+  },function(){camAddrL=[bays[camIdx].name]},{enableHighAccuracy:true});
   camI=setInterval(function(){
     var now=new Date();
     var M=["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -345,53 +164,40 @@ function startCam(){
     camS=s;document.getElementById("camVideo").srcObject=s;
   }).catch(function(e){document.getElementById("camTitle").textContent="Camera: "+e.message});
 }
-
-function stopCam(){
-  if(camS){camS.getTracks().forEach(function(t){t.stop()});camS=null}
-  if(camI){clearInterval(camI);camI=null}
-}
-
+function stopCam(){if(camS){camS.getTracks().forEach(function(t){t.stop()});camS=null}if(camI){clearInterval(camI);camI=null}}
 function snapPhoto(){
   var v=document.getElementById("camVideo");
-  var c=document.getElementById("camCanvas");
-  var ctx=c.getContext("2d");
-  c.width=v.videoWidth||1920;c.height=v.videoHeight||1440;
-  ctx.drawImage(v,0,0);
-  stopCam();
-  v.style.display="none";
-  document.getElementById("camOvr").style.display="none";
+  var cv=document.getElementById("camCanvas");
+  var ctx=cv.getContext("2d");
+  cv.width=v.videoWidth||1920;cv.height=v.videoHeight||1440;
+  ctx.drawImage(v,0,0);stopCam();
+  v.style.display="none";document.getElementById("camOvr").style.display="none";
   var now=new Date();
   var M=["January","February","March","April","May","June","July","August","September","October","November","December"];
   var d=now.getDate(),sf="th";if(d%10==1&&d!=11)sf="st";if(d%10==2&&d!=12)sf="nd";if(d%10==3&&d!=13)sf="rd";
   var dateLine=d+sf+" "+M[now.getMonth()]+" "+now.getFullYear()+" "+now.toLocaleTimeString("en-GB");
-  var lines=[dateLine].concat(camAddr);
-  var fs=Math.round(c.width*0.024);
-  var pad=fs*0.8;
-  var lh=fs*1.45;
-  var bh=lines.length*lh+pad*2;
-  var by=c.height-bh;
-  ctx.fillStyle="rgba(0,0,0,0.72)";
-  ctx.fillRect(0,by,c.width,bh);
+  var lines=[dateLine].concat(camAddrL);
+  var fs2=Math.round(cv.width*0.024);
+  var pad=fs2*0.8;var lh=fs2*1.45;var bh=lines.length*lh+pad*2;var by=cv.height-bh;
+  ctx.fillStyle="rgba(0,0,0,.72)";ctx.fillRect(0,by,cv.width,bh);
   for(var li=0;li<lines.length;li++){
-    ctx.font=(li==0?"bold ":"")+fs+"px -apple-system,Helvetica,sans-serif";
-    ctx.fillStyle=li==0?"#FF9F0A":li==1?"#FFFFFF":"#CCCCCC";
-    ctx.shadowColor="rgba(0,0,0,0.8)";ctx.shadowBlur=3;
+    ctx.font=(li===0?"bold ":"")+fs2+"px -apple-system,Helvetica,sans-serif";
+    ctx.fillStyle=li===0?"#FF9F0A":li===1?"#FFFFFF":"#CCCCCC";
+    ctx.shadowColor="rgba(0,0,0,.8)";ctx.shadowBlur=3;
     ctx.fillText(lines[li],pad,by+pad+lh*(li+0.75));
   }
   ctx.shadowBlur=0;
-  c.toBlob(function(blob){
+  cv.toBlob(function(blob){
     camBlob=blob;
     document.getElementById("camPreview").src=URL.createObjectURL(blob);
     document.getElementById("camPreview").style.display="block";
     document.getElementById("camBtns1").style.display="none";
     document.getElementById("camBtns2").style.display="block";
-    document.getElementById("camCount").textContent=(camPhotos.length+1)+" photo(s) taken";
+    document.getElementById("camCount").textContent=(camPhotos.length+1)+" photo(s)";
   },"image/jpeg",0.88);
 }
-
 function snapAfter(){
-  if(camBlob)camPhotos.push(camBlob);
-  camBlob=null;
+  if(camBlob)camPhotos.push(camBlob);camBlob=null;
   document.getElementById("camPreview").style.display="none";
   document.getElementById("camBtns2").style.display="none";
   document.getElementById("camBtns1").style.display="block";
@@ -399,15 +205,13 @@ function snapAfter(){
   btn.textContent="Snap After";btn.style.background="#0A84FF";
   startCam();
 }
-
 function shareAll(){
   if(camBlob)camPhotos.push(camBlob);
   if(!camPhotos.length)return;
-  var bay=bays[camIdx];
-  var label=bay.red?" red star":"";
+  var bay=bays[camIdx];var label=bay.red?" red star":"";
   var msg=bay.name+label+"\n"+(bay.ts||"tidy");
   var files=camPhotos.map(function(b,i){
-    var lbl=camPhotos.length==1?"":i==0?"_before":"_after";
+    var lbl=camPhotos.length===1?"":i===0?"_before":"_after";
     return new File([b],bay.name.replace(/ /g,"_")+lbl+"_"+Date.now()+".jpg",{type:"image/jpeg"});
   });
   if(navigator.share&&navigator.canShare&&navigator.canShare({files:files})){
@@ -415,30 +219,92 @@ function shareAll(){
       toast("Shared "+files.length+" photo(s)!");camPhotos=[];closeCam();
     }).catch(function(){});
   }else{
-    var ta=document.getElementById("copyText");ta.value=msg;oP("copyPopup");ta.focus();ta.select();
-    saveAll();
+    var ta=document.getElementById("copyText");ta.value=msg;oP("copyPopup");ta.focus();ta.select();saveAll();
   }
 }
-
 function saveAll(){
   if(camBlob)camPhotos.push(camBlob);
   camPhotos.forEach(function(b,i){
     var a=document.createElement("a");a.href=URL.createObjectURL(b);
-    var lbl=camPhotos.length==1?"":i==0?"_before":"_after";
+    var lbl=camPhotos.length===1?"":i===0?"_before":"_after";
     a.download=bays[camIdx].name.replace(/ /g,"_")+lbl+"_"+Date.now()+".jpg";
     document.body.appendChild(a);a.click();document.body.removeChild(a);
   });
   toast(camPhotos.length+" photo(s) saved");camPhotos=[];
 }
-
 function closeCam(){stopCam();cP("camPopup");camPhotos=[];camBlob=null}
 
-/* ========== SERVICE WORKER ========== */
-// no sw
-
-/* ========== INIT ========== */
+renderBays();cP("tidyPopup");pendTidy=null}
+function undoBay(i){bays[i].ts=null;bays[i].at=null;save();renderBays();toast(bays[i].name+" reset")}
+function renderBays(){
+Object.keys(bayMarks).forEach(function(k){map.removeLayer(bayMarks[k])});bayMarks={};
+bays.forEach(function(bay,i){
+var ic=iR;if(bay.ts==="tidy")ic=iT;if(bay.ts==="tidied")ic=iD;
+var cm="https://citymapper.com/directions?endcoord="+bay.lat+","+bay.lng+"&endname="+encodeURIComponent(bay.name);
+var bc=bikesAt(bay);
+var bikeInfo=bc>0?"<span style='color:#32D74B;font-weight:700'>"+bc+" bikes</span><br>":"";
+var pop="<b>"+bay.name+"</b>"+(bay.red?" <span style='color:#FF453A'>RED</span>":"")+"<br>"+bikeInfo+(bay.ts?(bay.ts==="tidy"?"Tidy":"Tidied"):"Not done")+(bay.at?"<br><span style='color:#888;font-size:11px'>"+new Date(bay.at).toLocaleTimeString()+"</span>":"")+"<br><a href='"+cm+"' target='_blank' style='display:inline-block;margin-top:6px;padding:6px 12px;background:#3DB551;color:#fff;border-radius:6px;font-weight:600;text-decoration:none;font-size:12px'>Navigate</a> <button onclick='openCam("+i+")' style='margin-top:6px;padding:6px 12px;background:#FF9F0A;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px'>Photo</button> "+(bay.ts?"<button onclick='undoBay("+i+")' style='margin-top:6px;padding:6px 12px;background:#555;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px'>Undo</button>":"<button onclick='openTidy("+i+")' style='margin-top:6px;padding:6px 12px;background:#32D74B;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px'>Tidy</button>");
+bayMarks[i]=L.marker([bay.lat,bay.lng],{icon:ic}).addTo(map).bindPopup(pop);
+});stats();pace();
+}
+function refreshBikes(){
+bays.forEach(function(b){b.ts=null;b.at=null});save();renderBays();
+toast("Loading bikes...");
+fetch("/api/bikes").then(function(r){return r.json()}).then(function(d){
+bMarks.forEach(function(m){map.removeLayer(m)});bMarks=[];
+if(d.bikes){d.bikes.forEach(function(bk){bMarks.push(L.marker([bk.lat,bk.lng],{icon:iB}).addTo(map))})}
+document.getElementById("bikeCount").textContent=(d.count||0)+" bikes";
+renderBays();toast((d.count||0)+" bikes loaded");
+}).catch(function(){document.getElementById("bikeCount").textContent="error"});
+}
+function nearestBay(){
+var u=bays.filter(function(b){return!b.ts});
+if(!u.length){toast("All done!");return}
+var n=null,m=Infinity;
+u.forEach(function(b){var d2=dist(uLat,uLng,b.lat,b.lng);if(d2<m){m=d2;n=b}});
+var i=bays.indexOf(n);map.setView([n.lat,n.lng],16);
+if(bayMarks[i])bayMarks[i].openPopup();
+toast(n.name+" - "+fmtDist(m));
+}
+function showRoute(){
+var active=[];
+bays.forEach(function(b,i){if(b.ts)return;var bc=bikesAt(b);if(bc>0)active.push({bay:b,idx:i,bikes:bc,dist:0})});
+if(!active.length){toast("No bays with bikes! Hit Refresh");return}
+var route=[];var remaining=active.slice();var curLat=uLat,curLng=uLng;
+while(remaining.length>0){
+var best=-1,bestD=Infinity;
+for(var j=0;j<remaining.length;j++){var d2=dist(curLat,curLng,remaining[j].bay.lat,remaining[j].bay.lng);var score=d2-(remaining[j].bikes*20);if(score<bestD){bestD=score;best=j}}
+var pick=remaining.splice(best,1)[0];
+pick.dist=dist(curLat,curLng,pick.bay.lat,pick.bay.lng);
+route.push(pick);curLat=pick.bay.lat;curLng=pick.bay.lng;
+}
+var totalDist=route.reduce(function(s,r){return s+r.dist},0);
+document.getElementById("routeInfo").textContent=route.length+" bays to visit | ~"+fmtDist(totalDist)+" total";
+var rhtml=route.map(function(r,idx){
+var cm="https://citymapper.com/directions?endcoord="+r.bay.lat+","+r.bay.lng+"&endname="+encodeURIComponent(r.bay.name);
+return "<div class='bay-item'><div><div class='bay-name'><span style='color:#FF9F0A;margin-right:6px'>#"+(idx+1)+"</span>"+r.bay.name+"</div><div class='bay-bikes'>"+r.bikes+" bikes</div><div class='bay-dist'>"+fmtDist(r.dist)+(idx===0?" from you":" from #"+idx)+"</div></div><div class='bay-actions'><a href='"+cm+"' target='_blank' style='padding:6px 10px;background:#3DB551;color:#fff;border-radius:8px;text-decoration:none;font-size:11px;font-weight:600'>Go</a></div></div>";
+}).join("");
+document.getElementById("routeList").innerHTML=rhtml;
+oP("routePanel");
+}
+function openBayPanel(){fB("all")}
+function fB(f){
+var fl=bays;
+if(f==="todo")fl=bays.filter(function(b){return!b.ts});
+if(f==="done")fl=bays.filter(function(b){return b.ts});
+fl=fl.slice().sort(function(a,b){return bikesAt(b)-bikesAt(a)});
+document.getElementById("panelCount").textContent=fl.length;
+document.getElementById("bayList").innerHTML=fl.map(function(bay){
+var ri=bays.indexOf(bay);var bc=bikesAt(bay);var d2=dist(uLat,uLng,bay.lat,bay.lng);
+var bl=bc>0?" - "+bc+" bikes":"";
+return "<div class='bay-item "+(bay.ts?"done":"")+"'><div><div class='bay-name'>"+(bay.ts?"\u2705":"\ud83d\udd34")+" "+bay.name+"<span style='color:#32D74B;font-weight:700'>"+bl+"</span></div><div class='bay-dist'>"+fmtDist(d2)+" away</div></div><div class='bay-actions'><button onclick='flyTo("+ri+")' style='background:#0A84FF;color:#fff'>Map</button>"+(bay.ts?"<button onclick='undoBay("+ri+");fB(\x22"+f+"\x22)' style='background:#555;color:#fff'>Undo</button>":"<button onclick='openTidy("+ri+");cP(\x22bayPanel\x22)' style='background:#32D74B;color:#000'>Tidy</button>")+"</div></div>";
+}).join("");
+oP("bayPanel");
+}
+function flyTo(i){cP("bayPanel");map.setView([bays[i].lat,bays[i].lng],16);if(bayMarks[i])bayMarks[i].openPopup()}
 renderBays();
 setInterval(pace,30000);
+
 </script>
 </body>
 </html>
