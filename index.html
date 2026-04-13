@@ -100,20 +100,20 @@ function dist(a,b,c,d){var R=6371000,dL=(c-a)*Math.PI/180,dN=(d-b)*Math.PI/180;v
 function fmtDist(m){return m<1000?Math.round(m)+"m":(m/1000).toFixed(1)+"km"}
 function fmtTime(m){return Math.ceil(m/60)+" min walk"}
 function bikesAt(bay){
-  var c=0;
+  var count=0;
   bMarks.forEach(function(mk){
     var l=mk.getLatLng();
-    var d=dist(bay.lat,bay.lng,l.lat,l.lng);
-    if(d>zData.radius)return;
+    var d1=dist(bay.lat,bay.lng,l.lat,l.lng);
+    if(d1>zData.radius)return;
     var dominated=false;
-    bays.forEach(function(other){
-      if(other===bay)return;
-      var d2=dist(other.lat,other.lng,l.lat,l.lng);
-      if(d2<d)dominated=true;
-    });
-    if(!dominated)c++;
+    for(var j=0;j<bays.length;j++){
+      if(bays[j]===bay)continue;
+      var d2=dist(bays[j].lat,bays[j].lng,l.lat,l.lng);
+      if(d2<d1){dominated=true;break}
+    }
+    if(!dominated)count++;
   });
-  return c;
+  return count;
 }
 
 // GPS
