@@ -185,22 +185,7 @@ function routeCluster(items,startLat,startLng){
   return route;
 }
 
-function twoOpt(route){
-  var improved=true;
-  while(improved){
-    improved=false;
-    for(var i=1;i<route.length-1;i++){
-      for(var j=i+1;j<route.length;j++){
-        var before=routeDist(route);
-        var seg=route.slice(i,j+1).reverse();
-        var newRoute=route.slice(0,i).concat(seg).concat(route.slice(j+1));
-        recalcDists(newRoute);
-        if(routeDist(newRoute)<before){route=newRoute;improved=true}
-      }
-    }
-  }
-  return route;
-}
+function twoOpt(route){return route}
 
 function routeDist(r){return r.reduce(function(s,x){return s+x.dist},0)}
 function recalcDists(r){
@@ -238,7 +223,7 @@ function showRoute(){
   });
 
   // Step 4: 2-opt improvement (only if <30 bays to keep it fast)
-  if(fullRoute.length<=30){recalcDists(fullRoute);fullRoute=twoOpt(fullRoute)}
+  // skip 2-opt
   recalcDists(fullRoute);
 
   var totalDist=routeDist(fullRoute);
