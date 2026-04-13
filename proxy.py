@@ -116,5 +116,5 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.wfile.write(out.encode())
         print("TOTAL (" + zone + "): " + str(len(all_bikes)) + " bikes")
 
-print("LimeBay on port " + str(PORT))
+import sys; sys.stdout.flush(); print("LimeBay starting on port " + str(PORT)); sys.stdout.flush()
 http.server.HTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
