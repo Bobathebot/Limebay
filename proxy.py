@@ -17,7 +17,10 @@ BRE1_ZONES = [
 ]
 
 WM_ZONES = [
-    {"ne_lat":51.527,"ne_lng":-0.148,"sw_lat":51.515,"sw_lng":-0.166,"user_latitude":51.520,"user_longitude":-0.157},
+    {"ne_lat":51.528,"ne_lng":-0.155,"sw_lat":51.520,"sw_lng":-0.168,"user_latitude":51.524,"user_longitude":-0.162},
+    {"ne_lat":51.528,"ne_lng":-0.145,"sw_lat":51.520,"sw_lng":-0.155,"user_latitude":51.524,"user_longitude":-0.150},
+    {"ne_lat":51.520,"ne_lng":-0.155,"sw_lat":51.514,"sw_lng":-0.168,"user_latitude":51.517,"user_longitude":-0.162},
+    {"ne_lat":51.520,"ne_lng":-0.145,"sw_lat":51.514,"sw_lng":-0.155,"user_latitude":51.517,"user_longitude":-0.150},
 ]
 
 BRE1_POLY = [
@@ -48,7 +51,7 @@ def in_bre1(lat, lng):
     return inside
 
 def in_wm(lat, lng):
-    return 51.514 <= lat <= 51.528 and -0.167 <= lng <= -0.147
+    return 51.513 <= lat <= 51.529 and -0.169 <= lng <= -0.144
 
 scraper = cffi_requests
 

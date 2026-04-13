@@ -58,7 +58,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#111;col
 <div class="popup" id="camPopup" style="min-width:300px">
 <div style="font-size:15px;font-weight:700;color:#32D74B;margin-bottom:8px" id="camTitle">Photo</div>
 <div id="camWrap"><video id="camVideo" autoplay playsinline></video>
-<div id="camOvr"><div style="color:#fff;font-size:12px;font-weight:600" id="oTime">--</div><div style="color:#fff;font-size:10px;line-height:1.5;margin-top:2px" id="oAddr">Detecting...</div><div style="color:#ddd;font-size:9px;margin-top:2px" id="oCoord">--</div></div></div>
+<div id="camOvr"><div id="oTime" style="color:#fff;font-size:12px;font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,.9),0 0 8px rgba(0,0,0,.7)">--</div><div id="oAddr" style="color:#fff;font-size:10px;line-height:1.5;margin-top:2px;text-shadow:0 1px 4px rgba(0,0,0,.9),0 0 8px rgba(0,0,0,.7)">Detecting...</div><div id="oCoord" style="color:#fff;font-size:9px;margin-top:2px;text-shadow:0 1px 4px rgba(0,0,0,.9),0 0 8px rgba(0,0,0,.7)">--</div></div></div>
 <canvas id="camCanvas" style="display:none"></canvas>
 <img id="camPreview">
 <div id="camCount" style="color:#FF9F0A;font-size:12px;font-weight:600;margin-top:4px"></div>
@@ -68,8 +68,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#111;col
 <div class="panel" id="routePanel"><button class="close-btn" onclick="cP('routePanel')">X</button><h2>Route Plan</h2><div style="color:#888;font-size:12px;margin-bottom:12px" id="routeInfo"></div><div id="routeList"></div></div>
 <div class="panel" id="bayPanel"><button class="close-btn" onclick="cP('bayPanel')">X</button><h2>All Bays (<span id="panelCount"></span>)</h2><div style="margin-bottom:10px;display:flex;gap:6px"><button class="btn bg" style="padding:7px" onclick="fB('all')">All</button><button class="btn bo" style="padding:7px" onclick="fB('todo')">To Tidy</button><button class="btn bk" style="padding:7px" onclick="fB('done')">Done</button></div><div id="bayList"></div></div>
 <div id="controls">
-<div class="row"><button class="btn bg" onclick="refreshBikes()">Refresh + Reset</button><button class="btn bb" onclick="centerMe()">My Location</button></div>
-<div class="row"><button class="btn bp" onclick="showRoute()">Route Plan</button><button class="btn bk" onclick="openBayPanel()">Bays</button><button class="btn bo" onclick="nearestBay()">Nearest</button></div>
+<div class="row"><button class="btn bg" onclick="refreshOnly()">Refresh Bikes</button><button class="btn bb" onclick="centerMe()">My Location</button></div>
+<div class="row"><button class="btn bp" onclick="showRoute()">Route Plan</button><button class="btn bk" onclick="openBayPanel()">Bays</button><button class="btn bo" onclick="nearestBay()">Nearest</button></div><div class="row"><button class="btn br" onclick="resetBays()">Reset Bays</button></div>
 </div>
 <script>
 var TILE_URL="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -171,6 +171,25 @@ function renderBays(){
 }
 
 // ===== BIKES =====
+
+function refreshOnly(){
+  toast("Loading bikes...");
+  fetch("/api/bikes?zone="+curZone).then(function(r){return r.json()}).then(function(d){
+    bMarks.forEach(function(m){map.removeLayer(m)});bMarks=[];
+    if(d.bikes){d.bikes.forEach(function(bk){bMarks.push(L.marker([bk.lat,bk.lng],{icon:iB}).addTo(map))})}
+    document.getElementById("bikeCount").textContent=(d.count||0)+" bikes";
+    renderBays();toast((d.count||0)+" bikes loaded");
+  }).catch(function(){document.getElementById("bikeCount").textContent="error"});
+}
+
+
+function resetBays(){
+  if(!confirm("Reset all bays?"))return;
+  bays.forEach(function(b){b.ts=null;b.at=null});
+  ss=null;localStorage.removeItem(SHIFT_KEY);
+  save();renderBays();toast("Bays reset");
+}
+
 function refreshBikes(){
   bays.forEach(function(b){b.ts=null;b.at=null});save();renderBays();
   toast("Loading bikes...");
@@ -276,9 +295,9 @@ function snapPhoto(){
   var d=now.getDate(),sf="th";if(d%10===1&&d!==11)sf="st";if(d%10===2&&d!==12)sf="nd";if(d%10===3&&d!==13)sf="rd";
   var dateLine=d+sf+" "+M[now.getMonth()]+" "+now.getFullYear()+" "+now.toLocaleTimeString("en-GB");
   var lines=[dateLine].concat(camAddrL);
-  var fs2=Math.round(cv.width*0.024);var pad=fs2*0.8;var lh=fs2*1.45;var bh=lines.length*lh+pad*2;var by=cv.height-bh;
-  ctx.fillStyle="rgba(0,0,0,.72)";ctx.fillRect(0,by,cv.width,bh);
-  for(var li=0;li<lines.length;li++){ctx.font=fs2+"px -apple-system,Helvetica,sans-serif";ctx.fillStyle="#FFFFFF";ctx.shadowColor="rgba(0,0,0,.8)";ctx.shadowBlur=3;ctx.fillText(lines[li],pad,by+pad+lh*(li+0.75))}
+  var fs2=Math.round(cv.width*0.028);var pad=fs2*0.8;var lh=fs2*1.45;var by=pad;
+  // no background bar
+  ctx.textAlign="right";for(var li=0;li<lines.length;li++){ctx.font=fs2+"px -apple-system,Helvetica,sans-serif";ctx.fillStyle="#FFFFFF";ctx.shadowColor="rgba(0,0,0,.9)";ctx.shadowBlur=5;ctx.shadowOffsetX=1;ctx.shadowOffsetY=1;ctx.fillText(lines[li],cv.width-pad,by+pad+lh*(li+0.75))}
   ctx.shadowBlur=0;
   cv.toBlob(function(blob){camBlob=blob;document.getElementById("camPreview").src=URL.createObjectURL(blob);document.getElementById("camPreview").style.display="block";document.getElementById("camBtns1").style.display="none";document.getElementById("camBtns2").style.display="block";document.getElementById("camCount").textContent=(camPhotos.length+1)+" photo(s)"},"image/jpeg",0.88);
 }
