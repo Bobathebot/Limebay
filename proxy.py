@@ -96,12 +96,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         hdrs = {"Authorization":"Bearer "+TOKEN,"Platform":"iOS","App-Version":"3.248.1","Content-Type":"application/json","Accept":"application/json"}
         all_bikes = []
         seen = set()
+        seen_coords = set()
         for i, z in enumerate(zones):
             try:
                 r = scraper.get("https://web-production.lime.bike/api/rider/v2/map/bike_pins", params=dict(z, zoom=16.0), headers=hdrs, impersonate="chrome")
                 pins = r.json().get("data",{}).get("attributes",{}).get("bike_pins",[])
                 for pin in pins:
                     bid = pin.get("id","")
+                    coord_key = str(round(lat,5)) + "," + str(round(lng,5))
+                    if coord_key in seen_coords: continue
+                    seen_coords.add(coord_key)
                     if bid in seen: continue
                     seen.add(bid)
                     loc = pin.get("location",{})
