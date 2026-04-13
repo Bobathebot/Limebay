@@ -98,7 +98,22 @@ function cP(id){document.getElementById(id).style.display="none"}
 function dist(a,b,c,d){var R=6371000,dL=(c-a)*Math.PI/180,dN=(d-b)*Math.PI/180;var x=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dN/2)*Math.sin(dN/2);return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))}
 function fmtDist(m){return m<1000?Math.round(m)+"m":(m/1000).toFixed(1)+"km"}
 function fmtTime(m){return Math.ceil(m/60)+" min walk"}
-function bikesAt(bay){var c=0;bMarks.forEach(function(mk){var l=mk.getLatLng();if(dist(bay.lat,bay.lng,l.lat,l.lng)<=zData.radius)c++});return c}
+function bikesAt(bay){
+  var c=0;
+  bMarks.forEach(function(mk){
+    var l=mk.getLatLng();
+    var d=dist(bay.lat,bay.lng,l.lat,l.lng);
+    if(d>zData.radius)return;
+    var dominated=false;
+    bays.forEach(function(other){
+      if(other===bay)return;
+      var d2=dist(other.lat,other.lng,l.lat,l.lng);
+      if(d2<d)dominated=true;
+    });
+    if(!dominated)c++;
+  });
+  return c;
+}
 
 // GPS
 if(navigator.geolocation){navigator.geolocation.watchPosition(function(p){uLat=p.coords.latitude;uLng=p.coords.longitude;if(uMark)uMark.setLatLng([uLat,uLng]);else uMark=L.marker([uLat,uLng],{icon:iU}).addTo(map)},null,{enableHighAccuracy:true})}
