@@ -16,10 +16,14 @@ BRE1_ZONES = [
     {"ne_lat":51.545,"ne_lng":-0.1880,"sw_lat":51.537,"sw_lng":-0.2000,"user_latitude":51.540,"user_longitude":-0.194},
 ]
 WM_ZONES = [
-    {"ne_lat":51.531,"ne_lng":-0.155,"sw_lat":51.523,"sw_lng":-0.175,"user_latitude":51.526,"user_longitude":-0.165},
-    {"ne_lat":51.531,"ne_lng":-0.144,"sw_lat":51.523,"sw_lng":-0.155,"user_latitude":51.527,"user_longitude":-0.150},
-    {"ne_lat":51.523,"ne_lng":-0.148,"sw_lat":51.514,"sw_lng":-0.165,"user_latitude":51.518,"user_longitude":-0.157},
-    {"ne_lat":51.523,"ne_lng":-0.144,"sw_lat":51.514,"sw_lng":-0.148,"user_latitude":51.518,"user_longitude":-0.146},
+    {"ne_lat":51.531,"ne_lng":-0.160,"sw_lat":51.525,"sw_lng":-0.175,"user_latitude":51.528,"user_longitude":-0.167},
+    {"ne_lat":51.531,"ne_lng":-0.148,"sw_lat":51.525,"sw_lng":-0.160,"user_latitude":51.528,"user_longitude":-0.154},
+    {"ne_lat":51.531,"ne_lng":-0.144,"sw_lat":51.525,"sw_lng":-0.148,"user_latitude":51.528,"user_longitude":-0.146},
+    {"ne_lat":51.525,"ne_lng":-0.158,"sw_lat":51.520,"sw_lng":-0.166,"user_latitude":51.522,"user_longitude":-0.162},
+    {"ne_lat":51.525,"ne_lng":-0.150,"sw_lat":51.520,"sw_lng":-0.158,"user_latitude":51.522,"user_longitude":-0.154},
+    {"ne_lat":51.525,"ne_lng":-0.144,"sw_lat":51.520,"sw_lng":-0.150,"user_latitude":51.522,"user_longitude":-0.147},
+    {"ne_lat":51.520,"ne_lng":-0.155,"sw_lat":51.514,"sw_lng":-0.166,"user_latitude":51.517,"user_longitude":-0.160},
+    {"ne_lat":51.520,"ne_lng":-0.144,"sw_lat":51.514,"sw_lng":-0.155,"user_latitude":51.517,"user_longitude":-0.150},
 ]
 
 BRE1_POLY = [
