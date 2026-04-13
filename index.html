@@ -67,7 +67,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#111;col
 <div class="row"><button class="btn br" onclick="resetBays()">Reset Bays</button><button class="btn bk" onclick="endShift()">End Shift</button></div>
 </div>
 <script>
-var TILE_URL="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+var TILE_URL="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png";
 var ZONES_DATA={
 bre1:{center:[51.5385,-0.2150],zoom:14,radius:25,maxCap:10,
 poly:[[51.5524661,-0.2571598],[51.5517801,-0.2608551],[51.5483151,-0.2631213],[51.5463647,-0.2685598],[51.543778,-0.2730777],[51.5399374,-0.277598],[51.5387313,-0.2813762],[51.5358572,-0.2779626],[51.5321862,-0.2644704],[51.5327452,-0.2643914],[51.5348561,-0.2602138],[51.5330767,-0.2538842],[51.5296053,-0.2495372],[51.5333164,-0.2462095],[51.5323539,-0.2429441],[51.5331569,-0.2343919],[51.5314549,-0.2304148],[51.5307439,-0.2272698],[51.5305549,-0.2235347],[51.5285089,-0.2157287],[51.5297629,-0.2157477],[51.5304819,-0.2150217],[51.5319439,-0.2149877],[51.533439,-0.203549],[51.5309889,-0.1978634],[51.5283487,-0.1980617],[51.527708,-0.1966884],[51.5334839,-0.1920883],[51.5345389,-0.1927233],[51.5368809,-0.1911753],[51.5505629,-0.2066466],[51.5464469,-0.2214934],[51.5436179,-0.2389171],[51.5503432,-0.2548816],[51.5524661,-0.2571598]],
@@ -84,6 +84,43 @@ var map,uMark,bMarks=[],bayMarks={},bays,bayCircle=null,zonePoly=null,routeLine=
 var uLat=zData.center[0],uLng=zData.center[1];
 var ss=localStorage.getItem(SHIFT_KEY)?parseInt(localStorage.getItem(SHIFT_KEY)):null;
 var pendTidy=null;
+
+
+function trackChurn(oldData){
+  var newData={};
+  bMarks.forEach(function(m){var l=m.getLatLng();var key=l.lat.toFixed(5)+","+l.lng.toFixed(5);newData[key]=true});
+  // For each bay, count how many bikes changed nearby
+  bays.forEach(function(bay){
+    var bayKey=bay.name;
+    if(!bikeChurn[bayKey])bikeChurn[bayKey]={changes:0,checks:0};
+    bikeChurn[bayKey].checks++;
+    var oldNear=0,newNear=0;
+    Object.keys(oldData).forEach(function(k){var p=k.split(",");if(dist(bay.lat,bay.lng,parseFloat(p[0]),parseFloat(p[1]))<=zData.radius)oldNear++});
+    Object.keys(newData).forEach(function(k){var p=k.split(",");if(dist(bay.lat,bay.lng,parseFloat(p[0]),parseFloat(p[1]))<=zData.radius)newNear++});
+    var delta=Math.abs(newNear-oldNear);
+    bikeChurn[bayKey].changes+=delta;
+  });
+}
+function getChurn(bay){
+  var ck=bikeChurn[bay.name];
+  if(!ck||ck.checks<2)return 0;
+  return Math.round(ck.changes/ck.checks*10)/10;
+}
+function isMessy(bay){return getChurn(bay)>=2}
+
+
+function osrmRoute(coords,callback){
+  if(coords.length<2){callback(coords);return}
+  var pts=coords.map(function(c){return c[1]+","+c[0]}).join(";");
+  fetch("https://router.project-osrm.org/route/v1/foot/"+pts+"?overview=full&geometries=geojson")
+    .then(function(r){return r.json()})
+    .then(function(data){
+      if(data.routes&&data.routes[0]){
+        callback(data.routes[0].geometry.coordinates.map(function(c){return[c[1],c[0]]}));
+      }else{callback(coords)}
+    })
+    .catch(function(){callback(coords)});
+}
 
 function loadBays(){bays=JSON.parse(localStorage.getItem(STORAGE+"_"+curZone)||"null");if(!bays){bays=zData.bays.map(function(b){return{name:b.n,lat:b.a,lng:b.o,red:true,ts:null,at:null}});localStorage.setItem(STORAGE+"_"+curZone,JSON.stringify(bays))}}
 loadBays();
@@ -127,7 +164,8 @@ function renderBays(){
     var overCap=bc>zData.maxCap;
     if(overCap&&!bay.ts)ic=mkI("\ud83d\udea8",28);
     var cm="https://citymapper.com/directions?endcoord="+bay.lat+","+bay.lng+"&endname="+encodeURIComponent(bay.name);
-    var bikeInfo=bc>0?"<span style='color:"+(overCap?"#FF453A":"#32D74B")+";font-weight:700'>"+bc+" bikes"+(overCap?" OVER CAPACITY":"")+"</span><br>":"";
+    var churn=getChurn(bay);var messy=isMessy(bay);
+var bikeInfo=bc>0?"<span style='color:"+(overCap?"#FF453A":"#32D74B")+";font-weight:700'>"+bc+" bikes"+(overCap?" OVER CAPACITY":"")+"</span>"+(messy?" <span style='color:#FF9F0A'>\ud83c\udf00 HIGH CHURN</span>":"")+"<br>":"";
     var pop="<b>"+bay.name+"</b>"+(bay.red?" <span style='color:#FF453A'>RED</span>":"")+"<br>"+bikeInfo+(bay.ts?(bay.ts==="tidy"?"Tidy":"Tidied"):"Not done")+(bay.at?"<br><span style='color:#888;font-size:11px'>"+new Date(bay.at).toLocaleTimeString()+"</span>":"")+"<br><a href='"+cm+"' target='_blank' style='display:inline-block;margin-top:6px;padding:6px 12px;background:#3DB551;color:#fff;border-radius:6px;font-weight:600;text-decoration:none;font-size:12px'>Navigate</a> <button onclick='openCam("+i+")' style='margin-top:6px;padding:6px 12px;background:#FF9F0A;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px'>Photo</button> "+(bay.ts?"<button onclick='undoBay("+i+")' style='margin-top:6px;padding:6px 12px;background:#555;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px'>Undo</button>":"<button onclick='openTidy("+i+")' style='margin-top:6px;padding:6px 12px;background:#32D74B;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px'>Tidy</button>");
     var mk=L.marker([bay.lat,bay.lng],{icon:ic}).addTo(map).bindPopup(pop);
     mk.on("popupopen",function(){if(bayCircle)map.removeLayer(bayCircle);bayCircle=L.circle([bay.lat,bay.lng],{radius:zData.radius,color:"#0A84FF",fillColor:"#0A84FF",fillOpacity:0.15,weight:2,opacity:0.5}).addTo(map)});
@@ -137,18 +175,19 @@ function renderBays(){
 }
 
 // ===== REFRESH BIKES (no reset) =====
-function refreshOnly(){
+function refreshOnly(){var oldBikeData={};bMarks.forEach(function(m){var l=m.getLatLng();var key=l.lat.toFixed(5)+","+l.lng.toFixed(5);oldBikeData[key]=true});
   toast("Loading bikes...");
   fetch("/api/bikes?zone="+curZone).then(function(r){return r.json()}).then(function(d){
     bMarks.forEach(function(m){map.removeLayer(m)});bMarks=[];
     if(d.bikes){d.bikes.forEach(function(bk){bMarks.push(L.marker([bk.lat,bk.lng],{icon:iB}).addTo(map))})}
     document.getElementById("bikeCount").textContent=(d.count||0)+" bikes";
     renderBays();toast((d.count||0)+" bikes loaded");
+trackChurn(oldBikeData);
   }).catch(function(){document.getElementById("bikeCount").textContent="error"});
 }
 
 // ===== RESET BAYS =====
-function resetBays(){if(!confirm("Reset all bays?"))return;bays.forEach(function(b){b.ts=null;b.at=null});ss=null;localStorage.removeItem(SHIFT_KEY);save();renderBays();toast("Bays reset")}
+function resetBays(){if(!confirm("Reset bays for another round?"))return;bays.forEach(function(b){b.ts=null;b.at=null});save();renderBays();toast("Bays reset - shift timer still running")}
 
 // ===== NEAREST BAY =====
 function nearestBay(){
@@ -208,6 +247,7 @@ function showRoute(){
     for(var k=0;k<remC.length;k++){
       var d2=dist(cLat,cLng,remC[k].lat,remC[k].lng);
       var bonus=remC[k].items.some(function(x){return x.overCap})?-500:0;
+      bonus+=remC[k].items.filter(function(x){return isMessy(x.bay)}).length*-200;
       var score=d2-(remC[k].totalBikes*15)+bonus;
       if(score<bestS){bestS=score;best=k}
     }
