@@ -1,71 +1,87 @@
-<!DOCTYPE html>
-<html lang="en"><head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-<title>LimeBay</title>
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="LimeBay">
-<link rel="stylesheet" href="leaflet.css"/>
-<script src="leaflet.js"></script>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#111;color:#fff;overflow:hidden}
-#map{width:100vw;height:100vh}
-#topbar{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(0,0,0,.88);backdrop-filter:blur(12px);padding:8px 12px;display:flex;align-items:center;justify-content:space-between}
-#topbar h1{font-size:16px;color:#32D74B}#topbar .stats{font-size:11px;color:#888;text-align:right}#topbar .stats b{color:#32D74B}
-.pace{font-size:10px;color:#FF9F0A;margin-top:1px}
-#zonebar{position:fixed;top:40px;left:0;right:0;z-index:999;background:rgba(0,0,0,.8);padding:5px 12px;display:flex;gap:6px}
-.zbtn{padding:5px 12px;border:2px solid #555;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;background:transparent;color:#aaa}
-.zbtn.active{border-color:#32D74B;color:#32D74B;background:rgba(50,212,75,.1)}
-#schedBanner{display:none;position:fixed;top:62px;left:0;right:0;z-index:997;padding:6px 12px;font-size:11px;font-weight:600;color:#fff}
-#controls{position:fixed;bottom:0;left:0;right:0;z-index:1000;background:rgba(0,0,0,.88);backdrop-filter:blur(12px);padding:7px 10px;padding-bottom:max(7px,env(safe-area-inset-bottom))}
-#controls .row{display:flex;gap:5px;margin-bottom:5px}#controls .row:last-child{margin-bottom:0}
-.btn{flex:1;padding:10px 4px;border:none;border-radius:10px;font-size:11px;font-weight:600;cursor:pointer;text-align:center}.btn:active{opacity:.7}
-.bg{background:#32D74B;color:#000}.br{background:#FF453A;color:#fff}.bb{background:#0A84FF;color:#fff}.bo{background:#FF9F0A;color:#000}.bk{background:#333;color:#fff}.bp{background:#BF5AF2;color:#fff}
-#bikeCount{position:fixed;top:85px;right:10px;z-index:998;background:#32D74B;color:#000;padding:4px 10px;border-radius:14px;font-size:11px;font-weight:700}
-#toast{display:none;position:fixed;top:95px;left:50%;transform:translateX(-50%);z-index:3000;background:rgba(50,212,75,.95);color:#000;padding:8px 18px;border-radius:10px;font-size:13px;font-weight:600;white-space:nowrap}
-.panel{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:2000;background:rgba(0,0,0,.96);padding:16px;overflow-y:auto}
-.panel h2{color:#32D74B;margin-bottom:12px}
-.bay-item{background:#1c1c1e;border-radius:12px;padding:11px;margin-bottom:7px;display:flex;justify-content:space-between;align-items:center}
-.bay-item.done{opacity:.45}.bay-item.urgent{border:2px solid #FF453A}.bay-item.blackhole{border:2px solid #FF9F0A}
-.bay-name{font-size:13px;font-weight:600}.bay-dist{color:#888;font-size:11px;margin-top:2px}
-.bay-actions{display:flex;gap:4px}.bay-actions button,.bay-actions a{padding:5px 9px;border:none;border-radius:7px;font-size:10px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block}
-.close-btn{position:fixed;top:14px;right:14px;z-index:2001;background:#FF453A;color:#fff;border:none;border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer}
-.popup{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2500;background:#1c1c1e;padding:20px;border-radius:16px;text-align:center;min-width:280px;max-width:90vw}
-.popup button{display:block;width:250px;margin:6px auto;padding:12px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer}
-.popup textarea{width:250px;height:60px;padding:10px;border:1px solid #333;border-radius:8px;background:#111;color:#fff;font-size:14px;resize:none;margin-top:8px}
-#camWrap{position:relative;width:280px;margin:0 auto;border-radius:10px;overflow:hidden}
-#camVideo{width:280px;display:block;background:#000}
-#camOvr{position:absolute;top:0;right:0;padding:10px 12px;text-align:right}
-#camPreview{width:280px;border-radius:10px;display:none;margin:8px auto 0}
-.insight{background:#1c1c1e;border-radius:10px;padding:12px;margin-bottom:8px}
-.insight h4{color:#FF9F0A;font-size:13px;margin-bottom:4px}
-.insight p{color:#aaa;font-size:12px;line-height:1.4}
-</style></head><body>
-<div id="topbar"><h1>LimeBay</h1><div class="stats">Bays: <b id="totalBays">0</b> | Done: <b id="doneBays">0</b> | Left: <b id="leftBays">0</b><div class="pace" id="paceDisplay"></div></div></div>
-<div id="zonebar"><button class="zbtn active" id="zBre" onclick="switchZone('bre1')">BRE1</button><button class="zbtn" id="zWm" onclick="switchZone('wm')">WM5+17</button></div>
-<div id="schedBanner"></div>
-<div id="bikeCount">0 bikes</div>
-<div id="toast"></div>
-<div id="map"></div>
-<div class="popup" id="tidyPopup"><div style="font-size:17px;font-weight:700;color:#32D74B;margin-bottom:4px" id="tidyTitle"></div><div style="color:#888;font-size:12px;margin-bottom:8px" id="tidyLabel"></div><div style="color:#FF9F0A;font-size:11px;margin-bottom:12px" id="tidyPrediction"></div><button style="background:#32D74B;color:#000" onclick="confirmTidy('tidy')">Tidy</button><button style="background:#0A84FF;color:#fff" onclick="confirmTidy('tidied')">Tidied</button><button style="background:#FF9F0A;color:#000" onclick="confirmTidy('skipped')">Skip (checked)</button><button style="background:#333;color:#fff" onclick="cP('tidyPopup')">Cancel</button></div>
-<div class="popup" id="copyPopup"><div style="font-size:14px;font-weight:600;color:#32D74B;margin-bottom:4px">Tap text then Copy</div><textarea id="copyText" readonly></textarea><button style="background:#333;color:#fff" onclick="cP('copyPopup')">Done</button></div>
-<div class="popup" id="camPopup" style="min-width:300px"><div style="font-size:15px;font-weight:700;color:#32D74B;margin-bottom:8px" id="camTitle">Photo</div><div id="camWrap"><video id="camVideo" autoplay playsinline></video><div id="camOvr"><div id="oTime" style="color:#fff;font-size:12px;font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,.9),0 0 8px rgba(0,0,0,.7)">--</div><div id="oAddr" style="color:#fff;font-size:10px;line-height:1.5;margin-top:2px;text-shadow:0 1px 4px rgba(0,0,0,.9),0 0 8px rgba(0,0,0,.7)">Detecting...</div><div id="oCoord" style="color:#fff;font-size:9px;margin-top:2px;text-shadow:0 1px 4px rgba(0,0,0,.9),0 0 8px rgba(0,0,0,.7)">--</div></div></div><canvas id="camCanvas" style="display:none"></canvas><img id="camPreview"><div id="camCount" style="color:#FF9F0A;font-size:12px;font-weight:600;margin-top:4px"></div>
-<div id="camBtns1"><button style="background:#32D74B;color:#000" onclick="snapPhoto()">Snap Before</button><button style="background:#333;color:#fff" onclick="closeCam()">Cancel</button></div>
-<div id="camBtns2" style="display:none"><button style="background:#FF9F0A;color:#000" onclick="snapAfter()">Snap After</button><button style="background:#3DB551;color:#fff" onclick="shareAll()">Share to Slack</button><button style="background:#0A84FF;color:#fff" onclick="saveAll()">Save Photos</button><button style="background:#333;color:#fff" onclick="closeCam()">Done</button></div></div>
-<div class="panel" id="routePanel"><button class="close-btn" onclick="cP('routePanel')">X</button><h2>Route Plan</h2><div style="color:#888;font-size:12px;margin-bottom:12px" id="routeInfo"></div><div id="routeSuggestion" style="margin-bottom:12px"></div><div id="routeList"></div></div>
-<div class="panel" id="bayPanel"><button class="close-btn" onclick="cP('bayPanel')">X</button><h2>All Bays (<span id="panelCount"></span>)</h2><div style="margin-bottom:10px;display:flex;gap:6px"><button class="btn bg" style="padding:7px" onclick="fB('all')">All</button><button class="btn bo" style="padding:7px" onclick="fB('todo')">To Tidy</button><button class="btn bk" style="padding:7px" onclick="fB('done')">Done</button></div><div id="bayList"></div></div>
-<div class="panel" id="histPanel"><button class="close-btn" onclick="cP('histPanel')">X</button><h2>Shift History</h2><div id="histList"></div></div>
-<div class="panel" id="insightPanel"><button class="close-btn" onclick="cP('insightPanel')">X</button><h2>Shift Report</h2><div id="insightList"></div></div>
-<div id="controls">
-<div class="row"><button class="btn bg" onclick="refreshOnly()">Refresh Bikes</button><button class="btn bb" onclick="centerMe()">My Location</button><button class="btn bo" onclick="nearestBay()">Nearest</button></div>
-<div class="row"><button class="btn bp" onclick="showRoute()">Route Plan</button><button class="btn bk" onclick="openBayPanel()">Bays</button><button class="btn bk" onclick="showHistory()">History</button></div>
-<div class="row"><button class="btn br" onclick="resetBays()">Reset Bays</button><button class="btn bk" onclick="endShift()">End Shift</button><button class="btn bk" onclick="showInsights()">Report</button></div>
-</div>
-<script>
-var TILE_URL="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png";
+var fs = require('fs');
+var TILE = 'https://' + '{s}' + '.basemaps.cartocdn.com/rastertiles/voyager/' + '{z}/{x}/{y}' + '@2x.png';
 
+var html = [];
+html.push('<!DOCTYPE html>');
+html.push('<html lang="en"><head>');
+html.push('<meta charset="UTF-8">');
+html.push('<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">');
+html.push('<title>LimeBay</title>');
+html.push('<meta name="apple-mobile-web-app-capable" content="yes">');
+html.push('<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">');
+html.push('<meta name="apple-mobile-web-app-title" content="LimeBay">');
+html.push('<link rel="stylesheet" href="leaflet.css"/>');
+html.push('<script src="leaflet.js"><\/script>');
+html.push('<style>');
+html.push('*{margin:0;padding:0;box-sizing:border-box}');
+html.push('body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#111;color:#fff;overflow:hidden}');
+html.push('#map{width:100vw;height:100vh}');
+html.push('#topbar{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(0,0,0,.88);backdrop-filter:blur(12px);padding:8px 12px;display:flex;align-items:center;justify-content:space-between}');
+html.push('#topbar h1{font-size:16px;color:#32D74B}#topbar .stats{font-size:11px;color:#888;text-align:right}#topbar .stats b{color:#32D74B}');
+html.push('.pace{font-size:10px;color:#FF9F0A;margin-top:1px}');
+html.push('#zonebar{position:fixed;top:40px;left:0;right:0;z-index:999;background:rgba(0,0,0,.8);padding:5px 12px;display:flex;gap:6px}');
+html.push('.zbtn{padding:5px 12px;border:2px solid #555;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;background:transparent;color:#aaa}');
+html.push('.zbtn.active{border-color:#32D74B;color:#32D74B;background:rgba(50,212,75,.1)}');
+html.push('#schedBanner{display:none;position:fixed;top:62px;left:0;right:0;z-index:997;padding:6px 12px;font-size:11px;font-weight:600;color:#fff}');
+html.push('#controls{position:fixed;bottom:0;left:0;right:0;z-index:1000;background:rgba(0,0,0,.88);backdrop-filter:blur(12px);padding:7px 10px;padding-bottom:max(7px,env(safe-area-inset-bottom))}');
+html.push('#controls .row{display:flex;gap:5px;margin-bottom:5px}#controls .row:last-child{margin-bottom:0}');
+html.push('.btn{flex:1;padding:10px 4px;border:none;border-radius:10px;font-size:11px;font-weight:600;cursor:pointer;text-align:center}.btn:active{opacity:.7}');
+html.push('.bg{background:#32D74B;color:#000}.br{background:#FF453A;color:#fff}.bb{background:#0A84FF;color:#fff}.bo{background:#FF9F0A;color:#000}.bk{background:#333;color:#fff}.bp{background:#BF5AF2;color:#fff}');
+html.push('#bikeCount{position:fixed;top:85px;right:10px;z-index:998;background:#32D74B;color:#000;padding:4px 10px;border-radius:14px;font-size:11px;font-weight:700}');
+html.push('#toast{display:none;position:fixed;top:95px;left:50%;transform:translateX(-50%);z-index:3000;background:rgba(50,212,75,.95);color:#000;padding:8px 18px;border-radius:10px;font-size:13px;font-weight:600;white-space:nowrap}');
+html.push('.panel{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:2000;background:rgba(0,0,0,.96);padding:16px;overflow-y:auto}');
+html.push('.panel h2{color:#32D74B;margin-bottom:12px}');
+html.push('.bay-item{background:#1c1c1e;border-radius:12px;padding:11px;margin-bottom:7px;display:flex;justify-content:space-between;align-items:center}');
+html.push('.bay-item.done{opacity:.45}.bay-item.urgent{border:2px solid #FF453A}.bay-item.blackhole{border:2px solid #FF9F0A}');
+html.push('.bay-name{font-size:13px;font-weight:600}.bay-dist{color:#888;font-size:11px;margin-top:2px}');
+html.push('.bay-actions{display:flex;gap:4px}.bay-actions button,.bay-actions a{padding:5px 9px;border:none;border-radius:7px;font-size:10px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block}');
+html.push('.close-btn{position:fixed;top:14px;right:14px;z-index:2001;background:#FF453A;color:#fff;border:none;border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer}');
+html.push('.popup{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2500;background:#1c1c1e;padding:20px;border-radius:16px;text-align:center;min-width:280px;max-width:90vw}');
+html.push('.popup button{display:block;width:250px;margin:6px auto;padding:12px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer}');
+html.push('.popup textarea{width:250px;height:60px;padding:10px;border:1px solid #333;border-radius:8px;background:#111;color:#fff;font-size:14px;resize:none;margin-top:8px}');
+html.push('#camWrap{position:relative;width:280px;margin:0 auto;border-radius:10px;overflow:hidden}');
+html.push('#camVideo{width:280px;display:block;background:#000}');
+html.push('#camOvr{position:absolute;top:0;right:0;padding:10px 12px;text-align:right}');
+html.push('#camPreview{width:280px;border-radius:10px;display:none;margin:8px auto 0}');
+html.push('.insight{background:#1c1c1e;border-radius:10px;padding:12px;margin-bottom:8px}');
+html.push('.insight h4{color:#FF9F0A;font-size:13px;margin-bottom:4px}');
+html.push('.insight p{color:#aaa;font-size:12px;line-height:1.4}');
+html.push('</style></head><body>');
+
+html.push('<div id="topbar"><h1>LimeBay</h1><div class="stats">Bays: <b id="totalBays">0</b> | Done: <b id="doneBays">0</b> | Left: <b id="leftBays">0</b><div class="pace" id="paceDisplay"></div></div></div>');
+html.push('<div id="zonebar"><button class="zbtn active" id="zBre" onclick="switchZone(\'bre1\')">BRE1</button><button class="zbtn" id="zWm" onclick="switchZone(\'wm\')">WM5+17</button></div>');
+html.push('<div id="schedBanner"></div>');
+html.push('<div id="bikeCount">0 bikes</div>');
+html.push('<div id="toast"></div>');
+html.push('<div id="map"></div>');
+
+// Popups
+html.push("<div class=\"popup\" id=\"tidyPopup\"><div style=\"font-size:17px;font-weight:700;color:#32D74B;margin-bottom:4px\" id=\"tidyTitle\"></div><div style=\"color:#888;font-size:12px;margin-bottom:8px\" id=\"tidyLabel\"></div><div style=\"color:#FF9F0A;font-size:11px;margin-bottom:12px\" id=\"tidyPrediction\"></div><button style=\"background:#32D74B;color:#000\" onclick=\"confirmTidy('tidy')\">Tidy</button><button style=\"background:#0A84FF;color:#fff\" onclick=\"confirmTidy('tidied')\">Tidied</button><button style=\"background:#FF9F0A;color:#000\" onclick=\"confirmTidy('skipped')\">Skip (checked)</button><button style=\"background:#333;color:#fff\" onclick=\"cP('tidyPopup')\">Cancel</button></div>");
+html.push("<div class=\"popup\" id=\"copyPopup\"><div style=\"font-size:14px;font-weight:600;color:#32D74B;margin-bottom:4px\">Tap text then Copy</div><textarea id=\"copyText\" readonly></textarea><button style=\"background:#333;color:#fff\" onclick=\"cP('copyPopup')\">Done</button></div>");
+
+// Camera
+html.push('<div class="popup" id="camPopup" style="min-width:300px"><div style="font-size:15px;font-weight:700;color:#32D74B;margin-bottom:8px" id="camTitle">Photo</div><div id="camWrap"><video id="camVideo" autoplay playsinline></video><div id="camOvr"><div id="oTime" style="color:#fff;font-size:12px;font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,.9),0 0 8px rgba(0,0,0,.7)">--</div><div id="oAddr" style="color:#fff;font-size:10px;line-height:1.5;margin-top:2px;text-shadow:0 1px 4px rgba(0,0,0,.9),0 0 8px rgba(0,0,0,.7)">Detecting...</div><div id="oCoord" style="color:#fff;font-size:9px;margin-top:2px;text-shadow:0 1px 4px rgba(0,0,0,.9),0 0 8px rgba(0,0,0,.7)">--</div></div></div><canvas id="camCanvas" style="display:none"></canvas><img id="camPreview"><div id="camCount" style="color:#FF9F0A;font-size:12px;font-weight:600;margin-top:4px"></div>');
+html.push("<div id=\"camBtns1\"><button style=\"background:#32D74B;color:#000\" onclick=\"snapPhoto()\">Snap Before</button><button style=\"background:#333;color:#fff\" onclick=\"closeCam()\">Cancel</button></div>");
+html.push("<div id=\"camBtns2\" style=\"display:none\"><button style=\"background:#FF9F0A;color:#000\" onclick=\"snapAfter()\">Snap After</button><button style=\"background:#3DB551;color:#fff\" onclick=\"shareAll()\">Share to Slack</button><button style=\"background:#0A84FF;color:#fff\" onclick=\"saveAll()\">Save Photos</button><button style=\"background:#333;color:#fff\" onclick=\"closeCam()\">Done</button></div></div>");
+
+// Panels
+html.push("<div class=\"panel\" id=\"routePanel\"><button class=\"close-btn\" onclick=\"cP('routePanel')\">X</button><h2>Route Plan</h2><div style=\"color:#888;font-size:12px;margin-bottom:12px\" id=\"routeInfo\"></div><div id=\"routeSuggestion\" style=\"margin-bottom:12px\"></div><div id=\"routeList\"></div></div>");
+html.push("<div class=\"panel\" id=\"bayPanel\"><button class=\"close-btn\" onclick=\"cP('bayPanel')\">X</button><h2>All Bays (<span id=\"panelCount\"></span>)</h2><div style=\"margin-bottom:10px;display:flex;gap:6px\"><button class=\"btn bg\" style=\"padding:7px\" onclick=\"fB('all')\">All</button><button class=\"btn bo\" style=\"padding:7px\" onclick=\"fB('todo')\">To Tidy</button><button class=\"btn bk\" style=\"padding:7px\" onclick=\"fB('done')\">Done</button></div><div id=\"bayList\"></div></div>");
+html.push("<div class=\"panel\" id=\"histPanel\"><button class=\"close-btn\" onclick=\"cP('histPanel')\">X</button><h2>Shift History</h2><div id=\"histList\"></div></div>");
+html.push("<div class=\"panel\" id=\"insightPanel\"><button class=\"close-btn\" onclick=\"cP('insightPanel')\">X</button><h2>Shift Report</h2><div id=\"insightList\"></div></div>");
+
+// Controls
+html.push('<div id="controls">');
+html.push('<div class="row"><button class="btn bg" onclick="refreshOnly()">Refresh Bikes</button><button class="btn bb" onclick="centerMe()">My Location</button><button class="btn bo" onclick="nearestBay()">Nearest</button></div>');
+html.push('<div class="row"><button class="btn bp" onclick="showRoute()">Route Plan</button><button class="btn bk" onclick="openBayPanel()">Bays</button><button class="btn bk" onclick="showHistory()">History</button></div>');
+html.push('<div class="row"><button class="btn br" onclick="resetBays()">Reset Bays</button><button class="btn bk" onclick="endShift()">End Shift</button><button class="btn bk" onclick="showInsights()">Report</button></div>');
+html.push('</div>');
+
+html.push('<script>');
+
+var js = 'var TILE_URL="' + TILE + '";\n';
+
+js += `
 var ZONES_DATA={
 bre1:{center:[51.5385,-0.2150],zoom:14,radius:25,maxCap:10,
 poly:[[51.5524661,-0.2571598],[51.5517801,-0.2608551],[51.5483151,-0.2631213],[51.5463647,-0.2685598],[51.5437780,-0.2730777],[51.5399374,-0.2775980],[51.5387313,-0.2813762],[51.5358572,-0.2779626],[51.5321862,-0.2644704],[51.5327452,-0.2643914],[51.5348561,-0.2602138],[51.5330767,-0.2538842],[51.5296053,-0.2495372],[51.5333164,-0.2462095],[51.5323539,-0.2429441],[51.5331569,-0.2343919],[51.5314549,-0.2304148],[51.5307439,-0.2272698],[51.5305549,-0.2235347],[51.5285089,-0.2157287],[51.5297629,-0.2157477],[51.5304819,-0.2150217],[51.5319439,-0.2149877],[51.5334390,-0.2035490],[51.5309889,-0.1978634],[51.5283487,-0.1980617],[51.5277080,-0.1966884],[51.5334839,-0.1920883],[51.5345389,-0.1927233],[51.5368809,-0.1911753],[51.5505629,-0.2066466],[51.5464469,-0.2214934],[51.5436179,-0.2389171],[51.5503432,-0.2548816],[51.5524661,-0.2571598]],
@@ -114,7 +130,7 @@ map=L.map("map",{zoomControl:false}).setView(zData.center,zData.zoom);
 L.tileLayer(TILE_URL,{attribution:"CartoDB",maxZoom:19,subdomains:"abcd"}).addTo(map);
 
 function mkI(e,s){return L.divIcon({html:"<div style='font-size:"+s+"px;text-align:center;line-height:1'>"+e+"</div>",className:"",iconSize:[s,s],iconAnchor:[s/2,s/2]})}
-var iB=mkI("\ud83d\udfe2",16),iR=mkI("\ud83d\udd34",24),iT=mkI("\ud83e\uddf9",24),iD=mkI("\u2705",24),iU=mkI("\ud83d\udfe5",22),iS=mkI("\u23ed\ufe0f",22),iA=mkI("\ud83d\udea8",28);
+var iB=mkI("\\ud83d\\udfe2",16),iR=mkI("\\ud83d\\udd34",24),iT=mkI("\\ud83e\\uddf9",24),iD=mkI("\\u2705",24),iU=mkI("\\ud83d\\udfe5",22),iS=mkI("\\u23ed\\ufe0f",22),iA=mkI("\\ud83d\\udea8",28);
 
 // ===== UTILS =====
 function toast(m){var t=document.getElementById("toast");t.textContent=m;t.style.display="block";setTimeout(function(){t.style.display="none"},2500)}
@@ -274,7 +290,7 @@ function updateScheduleBanner(){
   banner.style.display="block";
   var urgent=next.minsLeft<=15;
   banner.style.background=urgent?"rgba(255,69,58,.9)":"rgba(255,159,10,.85)";
-  banner.innerHTML=(urgent?"\u26a0\ufe0f ":"\u23f0 ")+"Next: <b>"+next.sched.time+"</b> "+next.sched.bays.join(", ")+" <span style='float:right'>"+next.minsLeft+"min</span>";
+  banner.innerHTML=(urgent?"\\u26a0\\ufe0f ":"\\u23f0 ")+"Next: <b>"+next.sched.time+"</b> "+next.sched.bays.join(", ")+" <span style='float:right'>"+next.minsLeft+"min</span>";
 }
 setInterval(updateScheduleBanner,30000);
 
@@ -314,7 +330,7 @@ function confirmTidy(s){
   }
   if(s!=="skipped"){
     var label=b.red?" red star":"";
-    var msg=b.name+label+"\n"+s;
+    var msg=b.name+label+"\\n"+s;
     var ta=document.getElementById("copyText");ta.value=msg;oP("copyPopup");ta.focus();ta.select();
   }
   toast(b.name+" - "+s+" ("+duration+" min)");
@@ -486,7 +502,7 @@ function fB(f){
     var pt=predictTime(bay);var bh=isBlackHole(bay);
     var bl=bc>0?" - "+bc+" bikes (~"+pt+"min)":"";
     var tags="";if(bh)tags+=" <span style='color:#FF9F0A'>BH</span>";
-    return "<div class='bay-item "+(bay.ts?"done":"")+(bh?" blackhole":"")+"'><div><div class='bay-name'>"+(bay.ts?"\u2705":"\ud83d\udd34")+" "+bay.name+"<span style='color:#32D74B;font-weight:700'>"+bl+"</span>"+tags+"</div><div class='bay-dist'>"+fmtDist(d2)+" | ~"+Math.ceil(d2/80)+"min walk</div></div><div class='bay-actions'><button onclick='flyTo("+ri+")' style='background:#0A84FF;color:#fff'>Map</button>"+(bay.ts?"<button onclick='undoBay("+ri+");fB(\x22"+f+"\x22)' style='background:#555;color:#fff'>Undo</button>":"<button onclick='openTidy("+ri+");cP(\x22bayPanel\x22)' style='background:#32D74B;color:#000'>Tidy</button>")+"</div></div>";
+    return "<div class='bay-item "+(bay.ts?"done":"")+(bh?" blackhole":"")+"'><div><div class='bay-name'>"+(bay.ts?"\\u2705":"\\ud83d\\udd34")+" "+bay.name+"<span style='color:#32D74B;font-weight:700'>"+bl+"</span>"+tags+"</div><div class='bay-dist'>"+fmtDist(d2)+" | ~"+Math.ceil(d2/80)+"min walk</div></div><div class='bay-actions'><button onclick='flyTo("+ri+")' style='background:#0A84FF;color:#fff'>Map</button>"+(bay.ts?"<button onclick='undoBay("+ri+");fB(\\x22"+f+"\\x22)' style='background:#555;color:#fff'>Undo</button>":"<button onclick='openTidy("+ri+");cP(\\x22bayPanel\\x22)' style='background:#32D74B;color:#000'>Tidy</button>")+"</div></div>";
   }).join("");
   oP("bayPanel");
 }
@@ -566,7 +582,7 @@ function startCam(){document.getElementById("camVideo").style.display="block";do
 function stopCam(){if(camS){camS.getTracks().forEach(function(t){t.stop()});camS=null}if(camI){clearInterval(camI);camI=null}}
 function snapPhoto(){var v=document.getElementById("camVideo");var cv=document.getElementById("camCanvas");var ctx=cv.getContext("2d");cv.width=v.videoWidth||1920;cv.height=v.videoHeight||1440;ctx.drawImage(v,0,0);stopCam();v.style.display="none";document.getElementById("camOvr").style.display="none";var now=new Date();var M=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];var dateLine=now.getDate()+" "+M[now.getMonth()]+" "+now.getFullYear()+" at "+now.toLocaleTimeString("en-GB");var lines=[dateLine].concat(camAddrL);var fs2=Math.round(cv.width*0.026);var pad=fs2*0.8;var lh=fs2*1.45;var by=pad;ctx.textAlign="right";for(var li=0;li<lines.length;li++){ctx.font=fs2+"px -apple-system,Helvetica,sans-serif";ctx.fillStyle="#FFFFFF";ctx.shadowColor="rgba(0,0,0,.9)";ctx.shadowBlur=5;ctx.shadowOffsetX=1;ctx.shadowOffsetY=1;ctx.fillText(lines[li],cv.width-pad,by+pad+lh*(li+0.75))}ctx.shadowBlur=0;ctx.textAlign="left";cv.toBlob(function(blob){camBlob=blob;document.getElementById("camPreview").src=URL.createObjectURL(blob);document.getElementById("camPreview").style.display="block";document.getElementById("camBtns1").style.display="none";document.getElementById("camBtns2").style.display="block";document.getElementById("camCount").textContent=(camPhotos.length+1)+" photo(s)"},"image/jpeg",0.88)}
 function snapAfter(){if(camBlob)camPhotos.push(camBlob);camBlob=null;document.getElementById("camPreview").style.display="none";document.getElementById("camBtns2").style.display="none";document.getElementById("camBtns1").style.display="block";startCam()}
-function shareAll(){if(camBlob)camPhotos.push(camBlob);if(!camPhotos.length)return;var bay=bays[camIdx];var msg=bay.name+(bay.red?" red star":"")+"\n"+(bay.ts||"tidy");var files=camPhotos.map(function(b,i){return new File([b],bay.name.replace(/ /g,"_")+"_"+Date.now()+".jpg",{type:"image/jpeg"})});if(navigator.share&&navigator.canShare&&navigator.canShare({files:files})){navigator.share({text:msg,files:files}).then(function(){toast("Shared!");camPhotos=[];closeCam()}).catch(function(){})}else{var ta=document.getElementById("copyText");ta.value=msg;oP("copyPopup");ta.focus();ta.select();saveAll()}}
+function shareAll(){if(camBlob)camPhotos.push(camBlob);if(!camPhotos.length)return;var bay=bays[camIdx];var msg=bay.name+(bay.red?" red star":"")+"\\n"+(bay.ts||"tidy");var files=camPhotos.map(function(b,i){return new File([b],bay.name.replace(/ /g,"_")+"_"+Date.now()+".jpg",{type:"image/jpeg"})});if(navigator.share&&navigator.canShare&&navigator.canShare({files:files})){navigator.share({text:msg,files:files}).then(function(){toast("Shared!");camPhotos=[];closeCam()}).catch(function(){})}else{var ta=document.getElementById("copyText");ta.value=msg;oP("copyPopup");ta.focus();ta.select();saveAll()}}
 function saveAll(){if(camBlob)camPhotos.push(camBlob);camPhotos.forEach(function(b){var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=bays[camIdx].name.replace(/ /g,"_")+"_"+Date.now()+".jpg";document.body.appendChild(a);a.click();document.body.removeChild(a)});toast(camPhotos.length+" saved");camPhotos=[]}
 function closeCam(){stopCam();cP("camPopup");camPhotos=[];camBlob=null}
 
@@ -574,5 +590,18 @@ function closeCam(){stopCam();cP("camPopup");camPhotos=[];camBlob=null}
 document.getElementById("zBre").className=curZone==="bre1"?"zbtn active":"zbtn";
 document.getElementById("zWm").className=curZone==="wm"?"zbtn active":"zbtn";
 drawBoundary();renderBays();updateScheduleBanner();setInterval(pace,30000);
+`;
 
-</script></body></html>
+try { new Function(js); } catch(e) {
+  console.log("JS ERROR:", e.message);
+  var lines = js.split('\n');
+  for(var i=0;i<lines.length;i++){try{new Function(lines.slice(0,i+1).join('\n'))}catch(e2){console.log("Line "+(i+1)+": "+e2.message);console.log(lines[i].substring(0,100));break}}
+  process.exit(1);
+}
+console.log("JS SYNTAX: OK");
+
+html.push(js);
+html.push('<\/script><\/body><\/html>');
+var full = html.join('\n');
+fs.writeFileSync('index.html', full);
+console.log("v6 FULL MODEL written! " + full.length + " bytes");
