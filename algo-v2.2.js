@@ -51,8 +51,15 @@
   }
 
   function getBikeList() {
-    return (typeof bikes !== 'undefined' && Array.isArray(bikes)) ? bikes
-         : (window.bikes || window.bikeList || window.prevBikePositions || []);
+    const candidates = [
+      (typeof bikes !== 'undefined') ? bikes : null,
+      window.bikes, window.bikeList, window.prevBikePositions
+    ];
+    for (const c of candidates) {
+      if (Array.isArray(c)) return c;
+      if (c && typeof c === 'object') return Object.values(c);
+    }
+    return [];
   }
 
   function bikeInHotspot(b, h) {
