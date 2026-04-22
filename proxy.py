@@ -100,10 +100,35 @@ def pip(lat, lng, poly):
         j = i
     return inside
 
+
+LAM6_ZONES = [
+    {"ne_lat":51.450,"ne_lng":-0.117,"sw_lat":51.438,"sw_lng":-0.125,"user_latitude":51.444,"user_longitude":-0.121},
+    {"ne_lat":51.450,"ne_lng":-0.109,"sw_lat":51.438,"sw_lng":-0.117,"user_latitude":51.444,"user_longitude":-0.113},
+    {"ne_lat":51.450,"ne_lng":-0.101,"sw_lat":51.438,"sw_lng":-0.109,"user_latitude":51.444,"user_longitude":-0.105},
+    {"ne_lat":51.450,"ne_lng":-0.092,"sw_lat":51.438,"sw_lng":-0.101,"user_latitude":51.444,"user_longitude":-0.097},
+    {"ne_lat":51.461,"ne_lng":-0.117,"sw_lat":51.450,"sw_lng":-0.125,"user_latitude":51.455,"user_longitude":-0.121},
+    {"ne_lat":51.461,"ne_lng":-0.109,"sw_lat":51.450,"sw_lng":-0.117,"user_latitude":51.455,"user_longitude":-0.113},
+    {"ne_lat":51.461,"ne_lng":-0.101,"sw_lat":51.450,"sw_lng":-0.109,"user_latitude":51.455,"user_longitude":-0.105},
+    {"ne_lat":51.461,"ne_lng":-0.092,"sw_lat":51.450,"sw_lng":-0.101,"user_latitude":51.455,"user_longitude":-0.097},
+]
+
+LAM6_POLY = [
+    (51.452595,-0.101306),(51.453134,-0.101926),(51.455608,-0.1035),(51.460688,-0.110195),
+    (51.46049,-0.110819),(51.459596,-0.115418),(51.459742,-0.116686),(51.456774,-0.118349),
+    (51.454227,-0.119904),(51.450737,-0.122254),(51.448643,-0.123749),(51.446824,-0.124178),
+    (51.445089,-0.124243),(51.444677,-0.124035),(51.443768,-0.120301),(51.442751,-0.116653),
+    (51.441468,-0.114722),(51.440504,-0.112104),(51.439889,-0.106912),(51.439033,-0.105109),
+    (51.438739,-0.100131),(51.438873,-0.09747),(51.439541,-0.09614),(51.440157,-0.094337),
+    (51.440324,-0.092555),(51.442388,-0.093749),(51.444218,-0.094868),(51.445525,-0.095127),
+    (51.447104,-0.096526),(51.448296,-0.098129),(51.449296,-0.099338),(51.450273,-0.099962),
+    (51.450336,-0.100763),(51.451405,-0.100971),(51.452071,-0.101425),(51.452595,-0.101306),
+]
+
 def in_bre1(lat, lng): return pip(lat, lng, BRE1_POLY)
 def in_wm(lat, lng): return pip(lat, lng, WM5_POLY) or pip(lat, lng, WM17_POLY)
 
 def in_rbkc6(lat, lng): return pip(lat, lng, RBKC6_POLY)
+def in_lam6(lat, lng): return pip(lat, lng, LAM6_POLY)
 
 scraper = cffi_requests
 
@@ -118,9 +143,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             super().do_GET()
 
     def get_bikes(self):
-        zone = "wm" if "zone=wm" in self.path else "rbkc6" if "zone=rbkc6" in self.path else "bre1"
-        zones = BRE1_ZONES if zone == "bre1" else RBKC6_ZONES if zone == "rbkc6" else WM_ZONES
-        filter_fn = in_bre1 if zone == "bre1" else in_rbkc6 if zone == "rbkc6" else in_wm
+        zone = "wm" if "zone=wm" in self.path else "rbkc6" if "zone=rbkc6" in self.path else "lam6" if "zone=lam6" in self.path else "bre1"
+        zones = BRE1_ZONES if zone == "bre1" else RBKC6_ZONES if zone == "rbkc6" else LAM6_ZONES if zone == "lam6" else WM_ZONES
+        filter_fn = in_bre1 if zone == "bre1" else in_rbkc6 if zone == "rbkc6" else in_lam6 if zone == "lam6" else in_wm
         hdrs = {"Authorization":"Bearer "+TOKEN,"Platform":"iOS","App-Version":"3.248.1","Content-Type":"application/json","Accept":"application/json"}
         all_bikes = []
         seen_id = set()
