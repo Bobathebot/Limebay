@@ -3,7 +3,7 @@ import http.server, json, os, sys
 from curl_cffi import requests as cffi_requests
 
 PORT = int(os.environ.get("PORT", 8080))
-TOKEN = "eyJraWQiOiJrcjM1bGx0Ymg1dTIiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX3Rva2VuIjoiWVlKQ1JST05VVTdVUSIsImxvZ2luX2NvdW50Ijo3LCJleHBpcmVzX2F0IjoxNzc1OTk0MTgxLCJpYXQiOjE3NzU5OTQwNjF9.vk_o75En_dyR6ZcwNPWoy4g_C4ROmA4EllfPW48IRL0"
+TOKEN = "eyJraWQiOiJrcjM1bGx0Ymg1dTIiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX3Rva2VuIjoiWVlKQ1JST05VVTdVUSIsImxvZ2luX2NvdW50Ijo5LCJleHBpcmVzX2F0IjoxNzc3Nzk0MDE5LCJpYXQiOjE3Nzc3OTM4OTl9.A136TKOG6jL_-aa1SysCVvMKfwVSWjajvI7yJOplmZo"
 
 BRE1_ZONES = [
     {"ne_lat":51.553,"ne_lng":-0.2588,"sw_lat":51.527,"sw_lng":-0.2820,"user_latitude":51.540,"user_longitude":-0.270},
@@ -124,11 +124,40 @@ LAM6_POLY = [
     (51.450336,-0.100763),(51.451405,-0.100971),(51.452071,-0.101425),(51.452595,-0.101306),
 ]
 
+
+LAM2_ZONES = [
+    {"ne_lat":51.488,"ne_lng":-0.123,"sw_lat":51.479,"sw_lng":-0.130,"user_latitude":51.484,"user_longitude":-0.127},
+    {"ne_lat":51.488,"ne_lng":-0.116,"sw_lat":51.479,"sw_lng":-0.123,"user_latitude":51.484,"user_longitude":-0.120},
+    {"ne_lat":51.488,"ne_lng":-0.109,"sw_lat":51.479,"sw_lng":-0.116,"user_latitude":51.484,"user_longitude":-0.113},
+    {"ne_lat":51.488,"ne_lng":-0.103,"sw_lat":51.479,"sw_lng":-0.109,"user_latitude":51.484,"user_longitude":-0.106},
+    {"ne_lat":51.497,"ne_lng":-0.123,"sw_lat":51.488,"sw_lng":-0.130,"user_latitude":51.493,"user_longitude":-0.127},
+    {"ne_lat":51.497,"ne_lng":-0.116,"sw_lat":51.488,"sw_lng":-0.123,"user_latitude":51.493,"user_longitude":-0.120},
+    {"ne_lat":51.497,"ne_lng":-0.109,"sw_lat":51.488,"sw_lng":-0.116,"user_latitude":51.493,"user_longitude":-0.113},
+    {"ne_lat":51.497,"ne_lng":-0.103,"sw_lat":51.488,"sw_lng":-0.109,"user_latitude":51.493,"user_longitude":-0.106},
+]
+
+LAM2_POLY = [
+    (51.494529,-0.122508),(51.490785,-0.123577),(51.48683,-0.127054),(51.485919,-0.129416),
+    (51.485056,-0.12841),(51.48473,-0.128192),(51.484472,-0.126265),(51.483502,-0.127022),
+    (51.483062,-0.125122),(51.482287,-0.122762),(51.480603,-0.117526),(51.479427,-0.11405),
+    (51.479232,-0.11176),(51.481298,-0.110703),(51.48033,-0.108319),(51.480395,-0.108251),
+    (51.48086,-0.104015),(51.481409,-0.104602),(51.481532,-0.104491),(51.482096,-0.105034),
+    (51.482095,-0.10525),(51.482441,-0.105713),(51.482725,-0.106021),(51.482972,-0.10563),
+    (51.483535,-0.106766),(51.483648,-0.107142),(51.484603,-0.106518),(51.484708,-0.106475),
+    (51.484877,-0.106294),(51.48552,-0.107847),(51.485779,-0.108268),(51.485849,-0.108427),
+    (51.488856,-0.105402),(51.490201,-0.104011),(51.490984,-0.103278),(51.491243,-0.10326),
+    (51.491325,-0.103365),(51.491527,-0.103041),(51.491998,-0.103688),(51.491966,-0.103857),
+    (51.492763,-0.104411),(51.492941,-0.104591),(51.493511,-0.104881),(51.493914,-0.106379),
+    (51.494588,-0.108333),(51.495204,-0.110033),(51.495489,-0.110911),(51.496448,-0.111418),
+    (51.494916,-0.118388),(51.494512,-0.119685),(51.494264,-0.121118),(51.494529,-0.122508),
+]
+
 def in_bre1(lat, lng): return pip(lat, lng, BRE1_POLY)
 def in_wm(lat, lng): return pip(lat, lng, WM5_POLY) or pip(lat, lng, WM17_POLY)
 
 def in_rbkc6(lat, lng): return pip(lat, lng, RBKC6_POLY)
 def in_lam6(lat, lng): return pip(lat, lng, LAM6_POLY)
+def in_lam2(lat, lng): return pip(lat, lng, LAM2_POLY)
 
 scraper = cffi_requests
 
@@ -143,9 +172,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             super().do_GET()
 
     def get_bikes(self):
-        zone = "wm" if "zone=wm" in self.path else "rbkc6" if "zone=rbkc6" in self.path else "lam6" if "zone=lam6" in self.path else "bre1"
-        zones = BRE1_ZONES if zone == "bre1" else RBKC6_ZONES if zone == "rbkc6" else LAM6_ZONES if zone == "lam6" else WM_ZONES
-        filter_fn = in_bre1 if zone == "bre1" else in_rbkc6 if zone == "rbkc6" else in_lam6 if zone == "lam6" else in_wm
+        zone = "wm" if "zone=wm" in self.path else "rbkc6" if "zone=rbkc6" in self.path else "lam6" if "zone=lam6" in self.path else "lam2" if "zone=lam2" in self.path else "bre1"
+        zones = BRE1_ZONES if zone == "bre1" else RBKC6_ZONES if zone == "rbkc6" else LAM6_ZONES if zone == "lam6" else LAM2_ZONES if zone == "lam2" else WM_ZONES
+        filter_fn = in_bre1 if zone == "bre1" else in_rbkc6 if zone == "rbkc6" else in_lam6 if zone == "lam6" else in_lam2 if zone == "lam2" else in_wm
         hdrs = {"Authorization":"Bearer "+TOKEN,"Platform":"iOS","App-Version":"3.248.1","Content-Type":"application/json","Accept":"application/json"}
         all_bikes = []
         seen_id = set()
